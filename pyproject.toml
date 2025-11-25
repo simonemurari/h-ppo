@@ -1,0 +1,27 @@
+[project]
+name = "h-ppo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gymnasium==0.29.1",
+    "minigrid>=3.0.0",
+    "python-dotenv>=1.2.1",
+    "setuptools<71.0",
+    "tensorboard>=2.20.0",
+    "torch>=2.9.1",
+    "tqdm>=4.67.1",
+    "tyro>=0.9.35",
+    "wandb>=0.23.0",
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
