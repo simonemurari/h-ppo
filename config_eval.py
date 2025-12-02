@@ -33,7 +33,7 @@ class Args:
         """the id of the environment"""
         return f"MiniGrid-DoorKey-{self.size_env}x{self.size_env}-v0"
 
-    heuristic: bool = True
+    heuristic: bool = False
     """whether to use the heuristic model or the standard PPO model"""
 
     eval_episodes: int = 1000

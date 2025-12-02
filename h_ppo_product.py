@@ -539,7 +539,7 @@ if __name__ == "__main__":
         model_path = f"models/h_ppo_product_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_seed={args.seed}.pt"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
-        from evals.ppo_eval import evaluate
+        from ppo_eval import evaluate
 
         episodic_returns = evaluate(
             model_path,
