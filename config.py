@@ -33,11 +33,14 @@ class Args:
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
+    save_model: bool = True
+    """whether to save the model into a .pt file"""
+
     # Algorithm specific arguments
     size_env: int = 8
     """the size of the environment (5, 6, 8, 16)"""
     
-    n_keys: int = 2
+    n_keys: int = 1
     """the number of keys in the environment"""
 
     run_code: str = ""
@@ -104,7 +107,7 @@ class Args:
     start_e: float = 1.0
     """starting value for heuristic epsilon schedule"""
 
-    end_e: float = 0.2
+    end_e: float = 0.05
     """final value for heuristic epsilon schedule"""
 
     exploration_fraction: float = 0.4

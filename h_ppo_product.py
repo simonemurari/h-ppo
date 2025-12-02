@@ -1,4 +1,5 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppopy
+import os
 import random
 import time
 from config import Args
@@ -532,6 +533,34 @@ if __name__ == "__main__":
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
         writer.add_scalar("losses/explained_variance", explained_var, global_step)
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+
+    if args.save_model:
+        os.makedirs(f"models/h_ppo_product_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
+        model_path = f"models/h_ppo_product_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_seed={args.seed}.pt"
+        torch.save(agent.state_dict(), model_path)
+        print(f"model saved to {model_path}")
+        from evals.ppo_eval import evaluate
+
+        episodic_returns = evaluate(
+            model_path,
+            make_env,
+            args.env_id,
+            args.n_keys,
+            eval_episodes=1000,
+            run_name=f"{run_name}-eval",
+            Model=Agent,
+            device=device,
+            track=args.track
+        )
+        for idx, episodic_return in enumerate(episodic_returns):
+            writer.add_scalar("eval/episodic_return", episodic_return, idx)
+
+        # if args.upload_model:
+        #     from cleanrl_utils.huggingface import push_to_hub
+
+        #     repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
+        #     repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
+        #     push_to_hub(args, episodic_returns, repo_id, "PPO", f"runs/{run_name}", f"videos/{run_name}-eval")
 
     envs.close()
     writer.close()
