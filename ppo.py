@@ -4,6 +4,7 @@ import random
 import time
 from config import Args
 import gymnasium as gym
+import sys
 import minigrid
 from tqdm import tqdm, trange
 import numpy as np
@@ -15,13 +16,13 @@ from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
 
-def make_env(env_id, n_keys, idx, capture_video, run_name):
+def make_env(env_id, n_keys, idx, capture_video, run_name, random_color=True):
     def thunk():
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
+            env = gym.make(env_id, random_color=random_color, render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         else:
-            env = gym.make(env_id, n_keys=n_keys)
+            env = gym.make(env_id, n_keys=n_keys, random_color=random_color)
             env = gym.wrappers.FlattenObservation(
                 gym.wrappers.FilterObservation(env, filter_keys=["image", "direction"])
             )
@@ -107,7 +108,7 @@ if __name__ == "__main__":
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.n_keys, i, args.capture_video, run_name) for i in range(args.num_envs)],
+        [make_env(args.env_id, args.n_keys, i, args.capture_video, run_name, args.random_color) for i in range(args.num_envs)],
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
     agent = Agent(envs).to(device)
@@ -271,19 +272,28 @@ if __name__ == "__main__":
         model_path = f"models/ppo_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/ppo_seed={args.seed}.pt"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
-        from ppo_eval import evaluate
+        # Prevent tyro in the evaluation module from parsing the training CLI args
+        saved_argv = sys.argv.copy()
+        try:
+            sys.argv = [sys.argv[0]]
+            from ppo_eval import evaluate
 
-        episodic_returns = evaluate(
-            model_path,
-            make_env,
-            args.env_id,
-            args.n_keys,
-            eval_episodes=1000,
-            run_name=f"{run_name}-eval",
-            Model=Agent,
-            device=device,
-            track=args.track
-        )
+            episodic_returns = evaluate(
+                model_path,
+                make_env,
+                args.env_id,
+                args.n_keys,
+                eval_episodes=1000,
+                run_name=f"{run_name}-eval",
+                seed=args.seed,
+                group_name=f"ppo_{args.group_name}_evals",
+                Model=Agent,
+                device=device,
+                track=False,
+                from_config=False
+            )
+        finally:
+            sys.argv = saved_argv
         for idx, episodic_return in enumerate(episodic_returns):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
 

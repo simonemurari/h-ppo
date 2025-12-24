@@ -12,7 +12,7 @@ class Args:
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
     """the name of this experiment"""
 
-    seed: int = 21
+    seed: int = 50
     """seed of the experiment"""
 
     torch_deterministic: bool = True
@@ -43,6 +43,9 @@ class Args:
     n_keys: int = 1
     """the number of keys in the environment"""
 
+    random_color: bool = True
+    """whether to use a random color for the key when n_keys=1, otherwise it is fixed to yellow"""
+
     run_code: str = ""
     """an optional code to distinguish the runs"""
 
@@ -56,10 +59,10 @@ class Args:
         """the wandb's group name for the experiment"""
         return f"{self.size_env}x{self.size_env}_{self.n_keys}keys{self.run_code}"
 
-    total_timesteps: int = 1000000
+    total_timesteps: int = 1_000_000
     """total timesteps of the experiments"""
 
-    learning_rate: float = 3e-4
+    learning_rate: float = 5e-4
     """the learning rate of the optimizer"""
 
     num_envs: int = 4
