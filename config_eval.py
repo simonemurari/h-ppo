@@ -10,7 +10,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 @dataclass
 class Args:
-    seed: int = 21
+    seed: int = 50
     """seed of the experiment"""
 
     size_env: int = 8
