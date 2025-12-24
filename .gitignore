@@ -12,3 +12,8 @@ runs/
 wandb/
 others/
 .env
+eval_results/
+eval_results_temp/
+eval_results_shared/
+models/
+doorkey_old.py
