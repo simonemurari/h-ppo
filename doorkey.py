@@ -61,7 +61,7 @@ class DoorKeyEnv(MiniGridEnv):
     """
 
     def __init__(
-        self, size=8, max_steps: int | None = None, n_keys: int | None = 1, **kwargs
+        self, size=8, max_steps: int | None = None, n_keys: int | None = 1, random_color: bool = True, **kwargs
     ):
         if max_steps is None:
             max_steps = 10 * size**2
@@ -70,6 +70,7 @@ class DoorKeyEnv(MiniGridEnv):
             mission_space=mission_space, grid_size=size, max_steps=max_steps, **kwargs
         )
         self.n_keys = n_keys
+        self.random_color = random_color # Used with 1 key to randomize color, else fixed yellow
 
     @staticmethod
     def _gen_mission():
@@ -93,16 +94,22 @@ class DoorKeyEnv(MiniGridEnv):
         # on the left side of the splitting wall
         self.place_agent(size=(splitIdx, height))
 
+        # With multiple keys, make them different colors
         if self.n_keys > 1:
             door_col = random.choice(list(COLORS.keys()))
             others = [c for c in COLORS.keys() if c != door_col]
+        # With single key, randomize color if specified
+        elif self.random_color:
+            door_col = random.choice(list(COLORS.keys()))
+        # With single key and no randomization, use yellow
         else:
             door_col = "yellow"
+
         # Place a door in the wall
         doorIdx = self._rand_int(1, height - 2)
         self.put_obj(Door(door_col, is_locked=True), splitIdx, doorIdx)
 
-        # Place a yellow key on the left side
+        # Place a key on the left side
         self.place_obj(obj=Key(door_col), top=(0, 0), size=(splitIdx, height))
         for _ in range(self.n_keys - 1):
             self.place_obj(
