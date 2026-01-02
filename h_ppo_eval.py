@@ -23,6 +23,7 @@ def evaluate(
     run_name: str,
     seed: int,
     group_name: str,
+    epsilon: float,
     Model: torch.nn.Module,
     device: torch.device = torch.device("cpu"),
     capture_video: bool = False,
@@ -50,6 +51,10 @@ def evaluate(
         seed = args.seed
         track = args.track
         n_keys = args.n_keys
+        epsilon = args.epsilon
+
+    if epsilon is None:
+        raise ValueError("Epsilon must be provided for heuristic PPO evaluation.")
 
     if track:
 
@@ -82,7 +87,7 @@ def evaluate(
     i = 0
 
     while len(episodic_returns) < eval_episodes:
-        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
+        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device), apply_heuristic=True, epsilon=epsilon)
         
         suggested_actions = apply_rules_batch(get_observables(obs[:, 4:]))
         if actions[0] in suggested_actions[0]:
@@ -97,7 +102,9 @@ def evaluate(
         step_actions[i] = (int(actions[0]), suggested_actions[0], match)
         if len(suggested_actions) > 1:
             print(f"step_actions: {step_actions[i]}")
-
+        if suggested_actions[0][0] is not None:
+            actions = np.random.choice(suggested_actions[0], size=1)
+            actions = torch.Tensor(actions).long().to(device)
         next_obs, _, _, _, infos = envs.step(actions.cpu().numpy())
         if "final_info" in infos:
             for info in infos["final_info"]:
@@ -128,28 +135,28 @@ def evaluate(
         action_name = action_name[0] if action_name else "unused action"
         print(f"Action {action} ({action_name}): {match_action}/{total_action} matches ({match_rate:.2f}%)")
 
-    # Write to CSV
-    general_folder_name = 'eval_results_8x8_16x16_1key-EVAL'
-    os.makedirs(f'{general_folder_name}/{group_name}', exist_ok=True)
-    csv_filename = f"{general_folder_name}/{group_name}/seed={seed}_omr={overall_match_rate:.2f}.csv"
-    with open(csv_filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['action', 'network_total', 'rules_total', 'match_rate'])
-        for action in [0, 1, 2, 3, 5]:
-            total_action = sum_actions[action]
-            match_action = match_actions[action]
-            match_rate = (match_action / total_action * 100) if total_action > 0 else 0.0
-            action_name = [k for k, v in action_map.items() if v == action][0]
-            writer.writerow([action_name, total_action, match_action, f"{match_rate:.2f}"])
+    # # Write to CSV
+    # general_folder_name = 'eval_results_hppo'
+    # os.makedirs(f'{general_folder_name}/{group_name}', exist_ok=True)
+    # csv_filename = f"{general_folder_name}/{group_name}/seed={seed}_omr={overall_match_rate:.2f}.csv"
+    # with open(csv_filename, 'w', newline='') as csvfile:
+    #     writer = csv.writer(csvfile)
+    #     writer.writerow(['action', 'network_total', 'rules_total', 'match_rate'])
+    #     for action in [0, 1, 2, 3, 5]:
+    #         total_action = sum_actions[action]
+    #         match_action = match_actions[action]
+    #         match_rate = (match_action / total_action * 100) if total_action > 0 else 0.0
+    #         action_name = [k for k, v in action_map.items() if v == action][0]
+    #         writer.writerow([action_name, total_action, match_action, f"{match_rate:.2f}"])
 
-    # Write to CSV
-    csv_filename = f"{general_folder_name}/{group_name}/seed={seed}_STEPACTIONS.csv"
-    with open(csv_filename, 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(['step', 'network_action', 'rules_suggested_actions', 'match'])
-        for episode, (net_action, rule_actions, match) in step_actions.items():
-            rule_actions_str = ';'.join([str(a) for a in rule_actions])
-            writer.writerow([episode, net_action, rule_actions_str, match])
+    # # Write to CSV
+    # csv_filename = f"{general_folder_name}/{group_name}/seed={seed}_STEPACTIONS.csv"
+    # with open(csv_filename, 'w', newline='') as csvfile:
+    #     writer = csv.writer(csvfile)
+    #     writer.writerow(['step', 'network_action', 'rules_suggested_actions', 'match'])
+    #     for episode, (net_action, rule_actions, match) in step_actions.items():
+    #         rule_actions_str = ';'.join([str(a) for a in rule_actions])
+    #         writer.writerow([episode, net_action, rule_actions_str, match])
 
     return episodic_returns
 
@@ -157,7 +164,7 @@ def evaluate(
 if __name__ == "__main__":
     # from huggingface_hub import hf_hub_download
 
-    from ppo import make_env, Agent
+    from h_ppo_product import make_env, Agent
     args = tyro.cli(Args)
     env_id = args.env_id
     n_keys = args.n_keys
@@ -167,6 +174,7 @@ if __name__ == "__main__":
     capture_video = args.capture_video
     seed = args.seed
     random_color = args.random_color
+    epsilon = args.epsilon
 
     # model_path = hf_hub_download(
     #     repo_id="sdpkjc/Hopper-v4-ppo_continuous_action-seed1", filename="ppo_continuous_action.cleanrl_model"
@@ -180,6 +188,7 @@ if __name__ == "__main__":
         run_name=run_name,
         seed=seed,
         group_name=args.group_name,
+        epsilon=args.epsilon,
         Model=Agent,
         device="cpu",
         capture_video=capture_video,

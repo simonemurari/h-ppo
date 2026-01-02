@@ -16,8 +16,8 @@ action_map = {
             "left": 0,  # Turn left
             "right": 1,  # Turn right
             "forward": 2,  # Move forward
-            "pickup": 3,  # Pickup object
-            "toggle": 5,  # Open door
+            "pickup": 3,  # Pickup key
+            "toggle": 5,  # Open/Unlock door
         }
 
 

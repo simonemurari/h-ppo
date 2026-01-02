@@ -316,7 +316,8 @@ if __name__ == "__main__":
                 Model=Agent,
                 device=device,
                 track=False,
-                from_config=False
+                from_config=False,
+                random_color=args.random_color
             )
         finally:
             sys.argv = saved_argv

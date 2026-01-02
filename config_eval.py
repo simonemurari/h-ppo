@@ -25,8 +25,14 @@ class Args:
     n_keys_model: int = 1
     """the number of keys the model was trained on"""
 
-    run_code: str = "TEST"
-    """an optional code to distinguish the runs"""
+    run_code: str = ""
+    """the same code used during training to distinguish different runs"""
+
+    eval_code: str = ""
+    """an optional code to distinguish the evaluation runs"""
+
+    random_color:  bool = True
+    """whether to use a random color for the key in the 1 key environments instead of the default yellow color"""
 
     @property
     def env_id(self) -> str:
@@ -35,6 +41,9 @@ class Args:
 
     heuristic: bool = False
     """whether to use the heuristic model or the standard PPO model"""
+
+    epsilon: float | None = None
+    """the epsilon value for the eval with h_ppo_eval.py"""
 
     eval_episodes: int = 1000
     """the number of evaluation episodes"""
@@ -57,10 +66,28 @@ class Args:
     @property
     def group_name(self) -> str:
         """the wandb's group name for the experiment"""
-        if self.heuristic is True:
-            return f"h_ppo_product_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.run_code}-EVAL"
+        if self.epsilon is None:
+            if self.heuristic is True and self.random_color is True:
+                return f"h_ppo_product_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EVAL"
+            elif self.heuristic is False and self.random_color is True:
+                return f"ppo_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EVAL"
+            elif self.heuristic is True and self.random_color is False and self.n_keys == 1:
+                return f"h_ppo_product_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EVAL"
+            elif self.heuristic is False and self.random_color is False and self.n_keys == 1:
+                return f"ppo_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EVAL"
+            else:
+                raise ValueError("random_color can only be False when n_keys is 1 because with more than 1 key, the colors are always random.")
         else:
-            return f"ppo_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.run_code}-EVAL"
+            if self.heuristic is True and self.random_color is True:
+                return f"h_ppo_product_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EPS={self.epsilon}-EVAL"
+            elif self.heuristic is False and self.random_color is True:
+                return f"ppo_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EPS={self.epsilon}-EVAL"
+            elif self.heuristic is True and self.random_color is False and self.n_keys == 1:
+                return f"h_ppo_product_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EPS={self.epsilon}-EVAL"
+            elif self.heuristic is False and self.random_color is False and self.n_keys == 1:
+                return f"ppo_{self.size_env_model}x{self.size_env_model}_{self.n_keys_model}keys{self.run_code}-TRAINED_{self.size_env}x{self.size_env}_{self.n_keys}keys{self.eval_code}-EPS={self.epsilon}-EVAL"
+            else:
+                raise ValueError("random_color can only be False when n_keys is 1 because with more than 1 key, the colors are always random.")
 
     @property
     def model_path(self) -> str:

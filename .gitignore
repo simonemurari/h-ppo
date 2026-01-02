@@ -15,5 +15,9 @@ others/
 eval_results/
 eval_results_temp/
 eval_results_shared/
+eval_results_8x8_1key/
+eval_results_8x8_16x16_1key-EVAL/
+eval_results_8x8_16x16_1key-HEVAL/
 models/
 doorkey_old.py
+regex_wandb.txt

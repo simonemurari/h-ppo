@@ -97,7 +97,9 @@ def evaluate(
         step_actions[i] = (int(actions[0]), suggested_actions[0], match)
         if len(suggested_actions) > 1:
             print(f"step_actions: {step_actions[i]}")
-
+        if suggested_actions[0][0] is not None:
+            actions = np.random.choice(suggested_actions[0], size=1)
+            actions = torch.Tensor(actions).long().to(device)
         next_obs, _, _, _, infos = envs.step(actions.cpu().numpy())
         if "final_info" in infos:
             for info in infos["final_info"]:
@@ -129,7 +131,7 @@ def evaluate(
         print(f"Action {action} ({action_name}): {match_action}/{total_action} matches ({match_rate:.2f}%)")
 
     # Write to CSV
-    general_folder_name = 'eval_results_8x8_16x16_1key-EVAL'
+    general_folder_name = 'eval_results_8x8_16x16_1key-HEVAL'
     os.makedirs(f'{general_folder_name}/{group_name}', exist_ok=True)
     csv_filename = f"{general_folder_name}/{group_name}/seed={seed}_omr={overall_match_rate:.2f}.csv"
     with open(csv_filename, 'w', newline='') as csvfile:
