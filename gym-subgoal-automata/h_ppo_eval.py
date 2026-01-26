@@ -2,39 +2,38 @@ import os
 from typing import Callable
 import tyro
 import time
-import gymnasium as gym
-import minigrid
+import gym
 import wandb
 import torch
 import numpy as np
 import random
 import csv
-from tqdm import trange, tqdm
+from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from config_eval import Args
-from doorkey_helpers import get_observables, apply_rules_batch, action_map
+import warnings
+warnings.filterwarnings("ignore")
 
 def evaluate(
     model_path: str,
     make_env: Callable,
     env_id: str,
-    n_keys: int,
     eval_episodes: int,
     run_name: str,
     seed: int,
     group_name: str,
+    epsilon: float,
     Model: torch.nn.Module,
     device: torch.device = torch.device("cpu"),
     capture_video: bool = False,
     track: bool = False,
     from_config: bool = True,
-    random_color: bool = True
 ):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
-    envs = gym.vector.SyncVectorEnv([make_env(env_id, n_keys, 0, capture_video, run_name, random_color)])
+    envs = gym.vector.SyncVectorEnv([make_env(env_id, seed, 0, capture_video, run_name)])
     agent = Model(envs).to(device)
     agent.load_state_dict(torch.load(model_path, map_location=device))
     agent.eval()
@@ -44,14 +43,17 @@ def evaluate(
         env_id = args.env_id
         model_path = args.model_path
         eval_episodes = args.eval_episodes
-        run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}-eval"
+        run_name = f"{args.task}__{args.exp_name}__{args.seed}__{int(time.time())}-eval"
         group_name = args.group_name
         capture_video = args.capture_video
         seed = args.seed
         track = args.track
-        n_keys = args.n_keys
+        epsilon = args.epsilon
         wandb_project_name = args.wandb_project_name
         wandb_entity = args.wandb_entity
+
+    if epsilon is None:
+        raise ValueError("Epsilon must be provided for heuristic PPO evaluation.")
 
     if track:
 
@@ -73,33 +75,29 @@ def evaluate(
         )
 
     seeds = random.sample(range(0, 10**9), eval_episodes)
-    obs, _ = envs.reset(seed=seeds[0])
+    envs.seed(seeds[0])
+    obs = envs.reset()
     episodic_returns = []
     pbar = tqdm(total=eval_episodes)
     tqdm.write(f"Model path: {model_path}")
-    tqdm.write(f"Evaluating {env_id} with {n_keys} keys, {eval_episodes} episodes")
+    tqdm.write(f"Evaluating {env_id} with {eval_episodes} episodes")
 
     while len(episodic_returns) < eval_episodes:
-        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device))
-        
-        suggested_actions = apply_rules_batch(get_observables(obs[:, 4:]))
-        if suggested_actions[0][0] is not None:
-            actions = np.random.choice(suggested_actions[0], size=1)
-            actions = torch.Tensor(actions).long().to(device)
-        next_obs, _, _, _, infos = envs.step(actions.cpu().numpy())
-        if "final_info" in infos:
-            for info in infos["final_info"]:
-                if "episode" not in info:
-                    continue
+        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device), envs=envs, apply_heuristic=True, epsilon=epsilon)
+
+        next_obs, _, done, infos = envs.step(actions.cpu().numpy())
+        for info in infos:
+            if "episode" in info:
                 episodic_returns += [info["episode"]["r"]]
                 pbar.update(1)
                 if len(episodic_returns) % 100 == 0:
                     tqdm.write(f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}")
                 if track:
                     writer.add_scalar("eval/episodic_return", info["episode"]["r"], len(episodic_returns))
-                
+                # Re-seed and reset for next episode
                 if len(episodic_returns) < eval_episodes:
-                    next_obs, _ = envs.reset(seed=seeds[len(episodic_returns)])
+                    envs.seed(seeds[len(episodic_returns)])
+                    next_obs = envs.reset()
         obs = next_obs
 
     if track:
@@ -111,16 +109,15 @@ def evaluate(
 if __name__ == "__main__":
     # from huggingface_hub import hf_hub_download
 
-    from ppo import make_env, Agent
+    from h_ppo_product import make_env, Agent
     args = tyro.cli(Args)
     env_id = args.env_id
-    n_keys = args.n_keys
     model_path = args.model_path
     eval_episodes = args.eval_episodes
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}-eval"
+    run_name = f"{args.task}__{args.exp_name}__{args.seed}__{int(time.time())}-eval"
     capture_video = args.capture_video
     seed = args.seed
-    random_color = args.random_color
+    epsilon = args.epsilon
 
     # model_path = hf_hub_download(
     #     repo_id="sdpkjc/Hopper-v4-ppo_continuous_action-seed1", filename="ppo_continuous_action.cleanrl_model"
@@ -129,14 +126,13 @@ if __name__ == "__main__":
         model_path,
         make_env,
         env_id,
-        n_keys=n_keys,
         eval_episodes=eval_episodes,
         run_name=run_name,
         seed=seed,
         group_name=args.group_name,
+        epsilon=args.epsilon,
         Model=Agent,
         device="cpu",
         capture_video=capture_video,
         track=args.track,
-        random_color=random_color
     )

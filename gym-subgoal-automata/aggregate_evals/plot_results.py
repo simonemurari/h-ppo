@@ -1,5 +1,7 @@
 import os
 import csv
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for saving plots
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -95,7 +97,14 @@ def generate_boxplots():
         return
     
     # Set global style
-    plt.style.use('seaborn-v0_8-whitegrid')
+    try:
+        plt.style.use('seaborn-v0_8-whitegrid')
+    except OSError:
+        # Fallback for older matplotlib versions
+        try:
+            plt.style.use('seaborn-whitegrid')
+        except OSError:
+            pass  # Use default style
     plt.rcParams['font.family'] = 'sans-serif'
     plt.rcParams['font.size'] = 11
     plt.rcParams['axes.titlesize'] = 14
@@ -224,38 +233,21 @@ def _generate_per_model_boxplots(env_folder_path, env_folder_name, per_model_dat
 
 def _format_env_name_short(name):
     """Format environment name for display (short version for per-model plots)."""
-    name = name.replace("MiniGrid-", "").replace("-v0", "")
+    # For officeworld: just return the task name
     parts = name.split("_")
-    env_part = parts[0] if parts else name
-    keys_part = parts[1] if len(parts) > 1 else ""
-    
-    env_part = env_part.replace("-", " ").replace("x", "×")
-    n_keys = keys_part.replace("keys", "")
-    key_word = "key" if n_keys == "1" else "keys"
-    
-    return f"{env_part} ({n_keys} {key_word})"
+    return parts[0] if parts else name
 
 
 def _format_env_name(name, eval_type=None):
     """Format environment name for display."""
-    # MiniGrid-DoorKey-16x16-v0_1keys -> DoorKey 16×16 (1 key)
-    name = name.replace("MiniGrid-", "").replace("-v0", "")
+    # For officeworld: task name is the first part before underscore
     parts = name.split("_")
-    env_part = parts[0] if parts else name
-    keys_part = parts[1] if len(parts) > 1 else ""
-    
-    env_part = env_part.replace("-", " ").replace("x", "×")
-    n_keys = keys_part.replace("keys", "")
-    key_word = "key" if n_keys == "1" else "keys"
-    
-    base_title = f"{env_part} ({n_keys} {key_word})"
+    base_title = parts[0] if parts else name
     
     if eval_type:
         return f"{base_title} — {_format_eval_type(eval_type)}"
     else:
         return f"{base_title} — General"
-    
-    return base_title
 
 
 def _format_eval_type(eval_type):
@@ -279,7 +271,7 @@ def _create_styled_boxplot(data, labels, full_names, title, save_path, figsize=(
     # Create boxplot with custom styling
     bp = ax.boxplot(
         data,
-        tick_labels=labels,
+        labels=labels,
         patch_artist=True,
         widths=0.6,
         showfliers=True,
@@ -322,7 +314,7 @@ def _create_styled_boxplot(data, labels, full_names, title, save_path, figsize=(
     all_values = [v for sublist in data for v in sublist]
     y_min = min(all_values)
     y_max = max(all_values)
-    y_padding = (y_max - y_min) * 0.1
+    y_padding = (y_max - y_min) * 0.1 if y_max != y_min else 0.1
     ax.set_ylim(max(0, y_min - y_padding), min(1.1, y_max + y_padding))
     
     # Clean up spines
