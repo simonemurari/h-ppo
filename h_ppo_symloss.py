@@ -15,6 +15,8 @@ import tyro
 from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
+from doorkey_helpers import apply_rules_batch, get_observables
+
 
 def make_env(env_id, n_keys, idx, capture_video, run_name, random_color=True):
     def thunk():
@@ -55,6 +57,8 @@ class Agent(nn.Module):
             nn.Tanh(),
             layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
         )
+        self.conf_level = 0.8
+        self.num_actions = envs.single_action_space.n
 
     def get_value(self, x):
         return self.critic(x)
@@ -65,6 +69,18 @@ class Agent(nn.Module):
         if action is None:
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(x)
+    
+    def get_logprob_symbolic(self, x, action):
+        suggested_actions_batch = apply_rules_batch(get_observables(x[:, 4:]))
+        torch_probs = torch.ones((x.shape[0], self.num_actions), device=x.device) * (1.0 - self.conf_level)
+        for i in range(x.shape[0]):
+            suggested_actions_list = suggested_actions_batch[i]
+            for suggested_action in suggested_actions_list:
+                if suggested_action is not None:
+                    torch_probs[i, suggested_action] = self.conf_level
+        torch_probs = torch_probs / torch_probs.sum(dim=-1, keepdim=True)
+        probs = Categorical(probs=torch_probs)
+        return probs.log_prob(action)
 
 
 if __name__ == "__main__":
@@ -84,7 +100,7 @@ if __name__ == "__main__":
             name=run_name,
             monitor_gym=True,
             save_code=True,
-            group=f"ppo_{args.group_name}"
+            group=f"h_ppo_symloss_{args.group_name}"
         )
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
@@ -118,6 +134,7 @@ if __name__ == "__main__":
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
     actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    logprobs_symbolic = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -147,9 +164,11 @@ if __name__ == "__main__":
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(next_obs)
+                logprob_symbolic = agent.get_logprob_symbolic(next_obs, action)
                 values[step] = value.flatten()
             actions[step] = action
             logprobs[step] = logprob
+            logprobs_symbolic[step] = logprob_symbolic
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
@@ -193,6 +212,7 @@ if __name__ == "__main__":
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
+        b_logprobs_symbolic = logprobs_symbolic.reshape(-1)
         b_actions = actions.reshape((-1,) + envs.single_action_space.shape)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
@@ -209,13 +229,18 @@ if __name__ == "__main__":
 
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(b_obs[mb_inds], b_actions.long()[mb_inds])
                 logratio = newlogprob - b_logprobs[mb_inds]
+                logratio_symbolic = newlogprob - b_logprobs_symbolic[mb_inds]
                 ratio = logratio.exp()
+                ratio_symbolic = logratio_symbolic.exp()
 
                 with torch.no_grad():
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
                     clipfracs += [((ratio - 1.0).abs() > args.clip_coef).float().mean().item()]
+                    old_approx_kl_symbolic = (-logratio_symbolic).mean()
+                    approx_kl_symbolic = ((ratio_symbolic - 1) - logratio_symbolic).mean()
+                    clipfracs += [((ratio_symbolic - 1.0).abs() > args.clip_coef).float().mean().item()]
 
                 mb_advantages = b_advantages[mb_inds]
                 if args.norm_adv:
@@ -225,6 +250,10 @@ if __name__ == "__main__":
                 pg_loss1 = -mb_advantages * ratio
                 pg_loss2 = -mb_advantages * torch.clamp(ratio, 1 - args.clip_coef, 1 + args.clip_coef)
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+
+                pg_loss1_symbolic = -mb_advantages * ratio_symbolic
+                pg_loss2_symbolic = -mb_advantages * torch.clamp(ratio_symbolic, 1 - args.clip_coef, 1 + args.clip_coef)
+                pg_loss_symbolic = torch.max(pg_loss1_symbolic, pg_loss2_symbolic).mean()
 
                 # Value loss
                 newvalue = newvalue.view(-1)
@@ -242,7 +271,7 @@ if __name__ == "__main__":
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
                 entropy_loss = entropy.mean()
-                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef
+                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef + pg_loss_symbolic
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -268,8 +297,8 @@ if __name__ == "__main__":
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     if args.save_model:
-        os.makedirs(f"models/ppo_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
-        model_path = f"models/ppo_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/ppo_seed={args.seed}.pt"
+        os.makedirs(f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
+        model_path = f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_symloss_seed={args.seed}.pt"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
         # Prevent tyro in the evaluation module from parsing the training CLI args
@@ -286,7 +315,7 @@ if __name__ == "__main__":
                 eval_episodes=1000,
                 run_name=f"{run_name}-eval",
                 seed=args.seed,
-                group_name=f"ppo_{args.group_name}_evals",
+                group_name=f"h_ppo_symloss_{args.group_name}_evals",
                 Model=Agent,
                 device=device,
                 track=False,

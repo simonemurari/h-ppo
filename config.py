@@ -57,12 +57,15 @@ class Args:
     @property
     def group_name(self) -> str:
         """the wandb's group name for the experiment"""
+        if self.run_code != "" and not self.run_code.startswith("_"):
+            self.run_code = "_" + self.run_code
+
         return f"{self.size_env}x{self.size_env}_{self.n_keys}keys{self.run_code}"
 
-    total_timesteps: int = 1_000_000
+    total_timesteps: int = 5_000_000
     """total timesteps of the experiments"""
 
-    learning_rate: float = 5e-4
+    learning_rate: float = 3e-4
     """the learning rate of the optimizer"""
 
     num_envs: int = 4
@@ -110,11 +113,14 @@ class Args:
     start_e: float = 1.0
     """starting value for heuristic epsilon schedule"""
 
-    end_e: float = 0.05
+    end_e: float = 0
     """final value for heuristic epsilon schedule"""
 
     exploration_fraction: float = 0.4
     """fraction of total iterations over which epsilon decays linearly"""
+
+    theta: float = 0.75
+    """coefficient for symbolic loss term"""
 
     # to be filled in runtime
     batch_size: int = 0

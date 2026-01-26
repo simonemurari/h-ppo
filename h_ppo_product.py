@@ -157,14 +157,13 @@ if __name__ == "__main__":
             lrnow = frac * args.learning_rate
             optimizer.param_groups[0]["lr"] = lrnow
 
-        epsilon = linear_schedule(
-                    args.start_e,
-                    args.end_e,
-                    args.exploration_fraction * args.total_timesteps,
-                    global_step,
-                )
-
         for step in range(0, args.num_steps):
+            epsilon = linear_schedule(
+                args.start_e,
+                args.end_e,
+                args.exploration_fraction * args.total_timesteps,
+                global_step,
+            )
             global_step += args.num_envs
             obs[step] = next_obs
             dones[step] = next_done
@@ -294,7 +293,7 @@ if __name__ == "__main__":
 
     if args.save_model:
         os.makedirs(f"models/h_ppo_product_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
-        model_path = f"models/h_ppo_product_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_seed={args.seed}.pt"
+        model_path = f"models/h_ppo_product_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_product_seed={args.seed}.pt"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
 
