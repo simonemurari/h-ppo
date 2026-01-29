@@ -118,6 +118,10 @@ def generate_boxplots():
             # Loop through eval_type subdirectories (standard, h_ppo_eps_X, random_rules)
             eval_type_dirs = [d for d in os.scandir(env_folder_path) if d.is_dir() and d.name != "per_model"]
             
+            # Sort eval_type directories for consistent ordering
+            eval_order = ['standard', 'random_rules', 'h_ppo_eps_0.5', 'h_ppo_eps_1.0']
+            eval_type_dirs.sort(key=lambda d: eval_order.index(d.name) if d.name in eval_order else 100)
+            
             if not eval_type_dirs:
                 # Fallback: no subdirectories, check for CSVs directly (old structure)
                 csv_files = [f for f in os.listdir(env_folder_path) if f.endswith(".csv")]
@@ -159,7 +163,7 @@ def generate_boxplots():
                         
                         # Also add to combined data with eval_type prefix
                         combined_data.append(returns)
-                        combined_labels.append(get_short_label(full_name))
+                        combined_labels.append(f"{get_short_label(full_name)}\n[{_format_eval_type(eval_type_name)}]")
                         combined_full_names.append(full_name)
                         
                         # Track data per model for cross-eval-type plots

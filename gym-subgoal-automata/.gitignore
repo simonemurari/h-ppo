@@ -62,6 +62,7 @@ instance/
 .webassets-cache
 runs/
 models/
+aggregate_evals/
 
 # Scrapy stuff:
 .scrapy

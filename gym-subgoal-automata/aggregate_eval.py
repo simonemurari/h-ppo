@@ -34,10 +34,13 @@ def main():
     # Decide which evaluation function to use based on exp_name or other logic
     if "random_rules" in args.eval_type:
         eval_func = ppo_eval_random_rules.evaluate
+        eval_type_subfolder = "random_rules"
     elif "h_ppo" in args.eval_type or args.epsilon is not None:
         eval_func = h_ppo_eval.evaluate
+        eval_type_subfolder = f"h_ppo_eps_{args.epsilon}"
     elif "standard" in args.eval_type:
         eval_func = ppo_eval.evaluate
+        eval_type_subfolder = "standard"
     else:
         raise ValueError(f"Unknown eval_type: {args.eval_type}, must be one of 'standard', 'random_rules', or 'h_ppo'.")
     
@@ -81,7 +84,7 @@ def main():
     # Save to CSV
     # Create aggregate_evals folder with nested structure: task/eval_type/
     base_dir = "aggregate_evals"
-    target_dir = os.path.join(base_dir, args.task, args.eval_type)
+    target_dir = os.path.join(base_dir, args.task, eval_type_subfolder)
     os.makedirs(target_dir, exist_ok=True)
 
     # Extract filename from model_path (part between first and second /)

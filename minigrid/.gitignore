@@ -21,3 +21,5 @@ eval_results_8x8_16x16_1key-HEVAL/
 models/
 doorkey_old.py
 regex_wandb.txt
+*.csv
+aggregate_evals/
