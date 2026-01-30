@@ -14,6 +14,8 @@ from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from config_eval import Args
 
+conf_level = 0.8
+
 def heuristic_action_selection(agent, x, epsilon):
         logits = agent.actor(x)
         probs = Categorical(logits=logits)
@@ -24,7 +26,7 @@ def heuristic_action_selection(agent, x, epsilon):
             suggested_actions_list = suggested_actions_batch[i]
             for suggested_action in suggested_actions_list:
                 if suggested_action is not None:
-                    multiplier[i, suggested_action] += agent.conf_level * epsilon
+                    multiplier[i, suggested_action] += conf_level * epsilon
         modified_probs = probs.probs * multiplier
         modified_probs = modified_probs / modified_probs.sum(dim=-1, keepdim=True)
         probs = Categorical(probs=modified_probs)
@@ -104,7 +106,7 @@ def evaluate(
     tqdm.write(f"Evaluating {env_id} with {n_keys} keys, {eval_episodes} episodes")
     
     while len(episodic_returns) < eval_episodes:
-        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device), apply_heuristic=True, epsilon=epsilon)
+        actions = heuristic_action_selection(agent, torch.tensor(obs).to(device).float(), epsilon)
         
         next_obs, _, _, _, infos = envs.step(actions.cpu().numpy())
         if "final_info" in infos:

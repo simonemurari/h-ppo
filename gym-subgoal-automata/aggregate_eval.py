@@ -44,7 +44,11 @@ def main():
     else:
         raise ValueError(f"Unknown eval_type: {args.eval_type}, must be one of 'standard', 'random_rules', or 'h_ppo'.")
     
-    print(f"Starting aggregate evaluation for {args.exp_name} on {args.env_id}")
+    # Print evaluation info
+    eval_info = f"eval_type={args.eval_type}"
+    if args.epsilon is not None:
+        eval_info += f", epsilon={args.epsilon}"
+    print(f"Starting aggregate evaluation on {args.env_id} ({eval_info})")
     print(f"{len(master_seeds)} seeds, {args.eval_episodes} episodes each. Total: {len(master_seeds) * args.eval_episodes} episodes.")
 
     for i, s in enumerate(master_seeds):

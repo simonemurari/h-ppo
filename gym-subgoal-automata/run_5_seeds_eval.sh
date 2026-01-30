@@ -18,17 +18,17 @@ uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "Deliv
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "" --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.5 --no-track
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "" --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.25" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.25" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.25" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.25
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.25" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.25" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.25" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.5" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.5" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.5" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.5
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.5" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.5" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.5" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.75" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.75" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.75" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.75
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.75" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.75" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "DeliverCoffee" --task "DeliverCoffeeAndMail" --run_code "_theta_0.75" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
 
 # PatrolAB -> PatrolABC
@@ -47,17 +47,17 @@ uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "Patro
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_v2" --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.5 --no-track
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_v2" --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.25_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.25_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.25_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.25
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.25_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.25_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.25_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.5_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.5_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.5_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.5
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.5_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.5_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.5_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.75_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.75_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.75_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.75
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.75_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.75_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --task_model "PatrolAB" --task "PatrolABC" --run_code "_theta_0.75_v2" --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
 
 # # ppo_reward_machine evals (both maps, all eval types)

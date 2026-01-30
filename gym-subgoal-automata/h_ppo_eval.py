@@ -15,23 +15,25 @@ from config_eval import Args
 import warnings
 warnings.filterwarnings("ignore")
 
-def heuristic_action_selection(agent, envs, x, epsilon):
-        logits = agent.actor(x)
-        probs = Categorical(logits=logits)
-        
-        multiplier = torch.ones_like(logits)
-        for i in range(x.shape[0]):
-            suggested_actions_list = envs.envs[i].guide_agent()
-            for suggested_action in suggested_actions_list:
-                if suggested_action is not None:
-                    multiplier[i, suggested_action] += agent.conf_level * epsilon
-        modified_probs = probs.probs * multiplier
-        modified_probs = modified_probs / modified_probs.sum(dim=-1, keepdim=True)
-        probs = Categorical(probs=modified_probs)
-        
-        action = probs.sample()
+conf_level = 0.8
 
-        return action
+def heuristic_action_selection(agent, envs, x, epsilon):
+    logits = agent.actor(x)
+    probs = Categorical(logits=logits)
+    
+    multiplier = torch.ones_like(logits)
+    for i in range(x.shape[0]):
+        suggested_actions_list = envs.envs[i].guide_agent()
+        for suggested_action in suggested_actions_list:
+            if suggested_action is not None:
+                multiplier[i, suggested_action] += conf_level * epsilon
+    modified_probs = probs.probs * multiplier
+    modified_probs = modified_probs / modified_probs.sum(dim=-1, keepdim=True)
+    probs = Categorical(probs=modified_probs)
+    
+    action = probs.sample()
+
+    return action
 
 def evaluate(
     model_path: str,
@@ -103,7 +105,7 @@ def evaluate(
 
     while len(episodic_returns) < eval_episodes:
         
-        actions = heuristic_action_selection(agent, envs, torch.Tensor(obs).to(device), epsilon)
+        actions = heuristic_action_selection(agent, envs, torch.Tensor(obs).to(device).float(), epsilon)
 
         next_obs, _, done, infos = envs.step(actions.cpu().numpy())
         for info in infos:

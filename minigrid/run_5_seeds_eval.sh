@@ -8,17 +8,17 @@ master_seeds=(50 70 95 200 700)
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7" --n_keys 2 --size_env 8 --model_name "h_ppo_product" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.25
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.5
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.75
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 1.0 --no-track
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 2 --size_env 8 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.5 --no-track
@@ -38,17 +38,17 @@ uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7"
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7" --n_keys 4 --size_env 8 --model_name "h_ppo_product" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.25
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.5
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.75
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 1.0 --no-track
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 4 --size_env 8 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.5 --no-track
@@ -68,17 +68,17 @@ uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7"
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7" --n_keys 1 --size_env 16 --model_name "h_ppo_product" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.25
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.5
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.75
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 1.0 --no-track
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 1 --size_env 16 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.5 --no-track
@@ -98,17 +98,17 @@ uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7"
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7" --n_keys 2 --size_env 16 --model_name "h_ppo_product" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.25
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.5
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.75
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 1.0 --no-track
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 2 --size_env 16 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.5 --no-track
@@ -128,17 +128,17 @@ uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7"
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_RC_v7" --n_keys 4 --size_env 16 --model_name "h_ppo_product" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.25
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.25
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.25" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.5
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.5
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.5" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track --theta 0.75
-uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track --theta 0.75
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 1.0 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.5 --no-track
+uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --run_code "_theta_0.75" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_theta" --eval_type "h_ppo" --epsilon 0.25 --no-track
 
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 1.0 --no-track
 uv run aggregate_eval.py --master_seeds "${master_seeds[@]}" --n_keys 4 --size_env 16 --model_name "h_ppo_symloss_eps" --eval_type "h_ppo" --epsilon 0.5 --no-track
