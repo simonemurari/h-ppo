@@ -1,17 +1,37 @@
 import os
 from typing import Callable
+from doorkey_helpers import apply_rules_batch, get_observables
 import tyro
 import time
 import gymnasium as gym
 import minigrid
 import wandb
 import torch
+from torch.distributions.categorical import Categorical
 import numpy as np
 import random
-import csv
-from tqdm import trange, tqdm
+from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from config_eval import Args
+
+def heuristic_action_selection(agent, x, epsilon):
+        logits = agent.actor(x)
+        probs = Categorical(logits=logits)
+        
+        suggested_actions_batch = apply_rules_batch(get_observables(x[:, 4:]))
+        multiplier = torch.ones_like(logits)
+        for i in range(x.shape[0]):
+            suggested_actions_list = suggested_actions_batch[i]
+            for suggested_action in suggested_actions_list:
+                if suggested_action is not None:
+                    multiplier[i, suggested_action] += agent.conf_level * epsilon
+        modified_probs = probs.probs * multiplier
+        modified_probs = modified_probs / modified_probs.sum(dim=-1, keepdim=True)
+        probs = Categorical(probs=modified_probs)
+
+        action = probs.sample()
+
+        return action
 
 def evaluate(
     model_path: str,

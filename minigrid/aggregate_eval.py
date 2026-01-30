@@ -9,8 +9,15 @@ from config_eval import Args
 import ppo_eval
 import h_ppo_eval
 import ppo_eval_random_rules
-import ppo
-import h_ppo_product
+from ppo import make_env, Agent as PPOAgent
+from h_ppo_product import Agent as HPPOProductAgent
+
+def get_agent_class(model_name: str):
+    """Return the appropriate Agent class based on model name."""
+    if model_name == "h_ppo_product":
+        return HPPOProductAgent
+    else:
+        return PPOAgent
 
 def main():
     args = tyro.cli(Args)
@@ -25,12 +32,6 @@ def main():
         eval_func = ppo_eval_random_rules.evaluate
         eval_type_subfolder = "random_rules"
     elif "h_ppo" in args.eval_type or args.epsilon is not None:
-        # h_ppo eval_type only works with h_ppo_product model
-        if args.model_name != "h_ppo_product":
-            raise ValueError(
-                f"h_ppo eval_type can only be used with 'h_ppo_product' model, "
-                f"but got '{args.model_name}'. Use 'standard' or 'random_rules' eval_type instead."
-            )
         eval_func = h_ppo_eval.evaluate
         eval_type_subfolder = f"h_ppo_eps_{args.epsilon}"
     elif "standard" in args.eval_type:
@@ -45,22 +46,17 @@ def main():
     for i, s in enumerate(master_seeds):
         print(f"\n--- Run {i+1}/{len(master_seeds)} with Master Seed {s} ---")
         args.seed = s  # Update seed for each run
-        
-        if eval_func == h_ppo_eval.evaluate:
-            model_class = h_ppo_product.Agent
-        else:
-            model_class = ppo.Agent
 
         eval_kwargs = {
             "model_path": args.model_path,
-            "make_env": ppo.make_env,
+            "make_env": make_env,
             "env_id": args.env_id,
             "n_keys": args.n_keys,
             "eval_episodes": args.eval_episodes,
             "run_name": f"{args.env_id}_seed_{s}",
             "seed": s,
             "group_name": args.group_name,
-            "Model": model_class,
+            "Model": get_agent_class(args.model_name),
             "device": "cuda" if torch.cuda.is_available() else "cpu",
             "capture_video": False,
             "track": False, # Don't log individual runs

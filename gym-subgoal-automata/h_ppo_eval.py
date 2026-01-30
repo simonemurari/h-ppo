@@ -9,10 +9,29 @@ import numpy as np
 import random
 import csv
 from tqdm import tqdm
+from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 from config_eval import Args
 import warnings
 warnings.filterwarnings("ignore")
+
+def heuristic_action_selection(agent, envs, x, epsilon):
+        logits = agent.actor(x)
+        probs = Categorical(logits=logits)
+        
+        multiplier = torch.ones_like(logits)
+        for i in range(x.shape[0]):
+            suggested_actions_list = envs.envs[i].guide_agent()
+            for suggested_action in suggested_actions_list:
+                if suggested_action is not None:
+                    multiplier[i, suggested_action] += agent.conf_level * epsilon
+        modified_probs = probs.probs * multiplier
+        modified_probs = modified_probs / modified_probs.sum(dim=-1, keepdim=True)
+        probs = Categorical(probs=modified_probs)
+        
+        action = probs.sample()
+
+        return action
 
 def evaluate(
     model_path: str,
@@ -83,7 +102,8 @@ def evaluate(
     tqdm.write(f"Evaluating {env_id} with {eval_episodes} episodes")
 
     while len(episodic_returns) < eval_episodes:
-        actions, _, _, _ = agent.get_action_and_value(torch.Tensor(obs).to(device), envs=envs, apply_heuristic=True, epsilon=epsilon)
+        
+        actions = heuristic_action_selection(agent, envs, torch.Tensor(obs).to(device), epsilon)
 
         next_obs, _, done, infos = envs.step(actions.cpu().numpy())
         for info in infos:
