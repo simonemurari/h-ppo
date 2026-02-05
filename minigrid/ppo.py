@@ -164,7 +164,7 @@ if __name__ == "__main__":
                         writer.add_scalar("episodic_length", info["episode"]["l"], global_step)
                         episodes_returns.append(info["episode"]["r"])
                         episodes_lengths.append(info["episode"]["l"])
-                        if iteration % 100 == 0:
+                        if iteration % max(1, math.ceil(args.num_iterations / 10)) == 0 or iteration == args.num_iterations:
                             old_len_ep_ret = len_ep_ret
                             len_ep_ret = len(episodes_returns)
                             num_eps = len_ep_ret - old_len_ep_ret

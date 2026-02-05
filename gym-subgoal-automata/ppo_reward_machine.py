@@ -1,34 +1,55 @@
-# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppopy
-import os
+# docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/c51/#c51py
 import random
 import time
-from config import Args
-import gymnasium as gym
 import sys
-import minigrid
 from tqdm import tqdm, trange
+import tyro
+from pathlib import Path
+import os
+import math
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+sys.path.append(str(Path(__file__).parent.parent))
+from config import Args
+import gym
+import gym.wrappers
+from gym import spaces
 import numpy as np
 import torch
+from torch.distributions.categorical import Categorical
 import torch.nn as nn
 import torch.optim as optim
-import tyro
-from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
+from dotenv import load_dotenv
+import warnings
 
-from doorkey_helpers import apply_rules_batch, get_observables
+load_dotenv(".env")
+WANDB_KEY = os.getenv("WANDB_KEY")
+warnings.filterwarnings("ignore")
+print(
+    f"Torch: {torch.__version__}, cuda.is_available(): {torch.cuda.is_available()}"
+)
 
 
-def make_env(env_id, n_keys, idx, capture_video, run_name, random_color=True):
+
+def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
-        if capture_video and idx == 0:
-            env = gym.make(env_id, random_color=random_color, render_mode="rgb_array", n_keys=n_keys)
-            env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
-        else:
-            env = gym.make(env_id, n_keys=n_keys, random_color=random_color)
-            env = gym.wrappers.FlattenObservation(
-                gym.wrappers.FilterObservation(env, filter_keys=["image", "direction"])
-            )
+        env = gym.make(
+            env_id,
+            params={
+                "generation": "random",
+                "environment_seed": seed,
+                "use_one_hot_vector_states": True,
+            },
+        )
         env = gym.wrappers.RecordEpisodeStatistics(env)
+        if isinstance(env.observation_space, spaces.Discrete):
+            n = env.observation_space.n
+            env.observation_space = spaces.Box(
+                low=0.0, high=1.0, shape=(n,), dtype=np.float32
+            )
+        if capture_video:
+            if idx == 0:
+                env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
         return env
 
     return thunk
@@ -57,8 +78,6 @@ class Agent(nn.Module):
             nn.Tanh(),
             layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
         )
-        self.conf_level = 0.8
-        self.num_actions = envs.single_action_space.n
 
     def get_value(self, x):
         return self.critic(x)
@@ -69,26 +88,51 @@ class Agent(nn.Module):
         if action is None:
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(x)
+
+
+def _get_rm_reward_batch(envs, actions):
+
+    rm_rewards = []
     
-    def get_logprob_symbolic(self, x, action):
-        suggested_actions_batch = apply_rules_batch(get_observables(x[:, 4:]))
-        torch_probs = torch.ones((x.shape[0], self.num_actions), device=x.device) * (1.0 - self.conf_level)
-        for i in range(x.shape[0]):
-            suggested_actions_list = suggested_actions_batch[i]
-            for suggested_action in suggested_actions_list:
-                if suggested_action is not None:
-                    torch_probs[i, suggested_action] = self.conf_level
-        torch_probs = torch_probs / torch_probs.sum(dim=-1, keepdim=True)
-        probs = Categorical(probs=torch_probs)
-        return probs.log_prob(action)
+    for i in range(len(envs.envs)):
+        env = envs.envs[i].unwrapped
+        prev_visited_rooms = env.prev_visited_rooms
+        prev_has_coffee = env.prev_has_coffee
+        
+        action = actions[i].item()
+        suggested_actions = env.guide_agent()
+        is_action_suggested = action in suggested_actions
+        
+        reward = 0
+        task_name = env.__class__.__name__
+        
+        # 1. DeliverCoffee and DeliverCoffeeAndMail
+        if "DeliverCoffee" in task_name:
+            if not prev_has_coffee and env.has_coffee:
+                reward = 0.005
+        
+        # 2. Patrol worlds
+        elif "Patrol" in task_name:
+            if prev_visited_rooms != env.visited_rooms:
+                reward = 0.005
+                
+        # 3. Handle action matches suggested actions 
+        if reward == 0 and is_action_suggested:
+            reward = 0.00025            
+        rm_rewards.append(reward)
+        
+    return rm_rewards
 
 
 if __name__ == "__main__":
     args = tyro.cli(Args)
+    
+    # Compute runtime values
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    
+    run_name = f"{args.task}__{args.exp_name}__{args.seed}__{int(time.time())}"
     if args.track:
         import wandb
 
@@ -100,7 +144,7 @@ if __name__ == "__main__":
             name=run_name,
             monitor_gym=True,
             save_code=True,
-            group=f"h_ppo_symloss_{args.group_name}"
+            group=f"ppo_RM_{args.group_name}"
         )
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
@@ -124,9 +168,10 @@ if __name__ == "__main__":
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.n_keys, i, args.capture_video, run_name, args.random_color) for i in range(args.num_envs)],
+        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
+
     agent = Agent(envs).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
 
@@ -134,7 +179,6 @@ if __name__ == "__main__":
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
     actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    logprobs_symbolic = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -142,9 +186,10 @@ if __name__ == "__main__":
     # TRY NOT TO MODIFY: start the game
     global_step = 0
     start_time = time.time()
-    next_obs, _ = envs.reset(seed=args.seed)
-    next_obs = torch.Tensor(next_obs).to(device)
+    envs.seed(args.seed)
+    next_obs = torch.Tensor(envs.reset()).to(device)
     next_done = torch.zeros(args.num_envs).to(device)
+    num_updates = args.total_timesteps // args.batch_size
     episodes_returns = []
     episodes_lengths = []
     len_ep_ret = 0
@@ -152,46 +197,47 @@ if __name__ == "__main__":
     for iteration in trange(1, args.num_iterations + 1, colour="green"):
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
-            frac = 1.0 - (iteration - 1.0) / args.num_iterations
+            frac = 1.0 - (iteration - 1.0) / num_updates
             lrnow = frac * args.learning_rate
             optimizer.param_groups[0]["lr"] = lrnow
 
         for step in range(0, args.num_steps):
-            global_step += args.num_envs
+            global_step += 1 * args.num_envs
             obs[step] = next_obs
             dones[step] = next_done
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(next_obs)
-                logprob_symbolic = agent.get_logprob_symbolic(next_obs, action)
                 values[step] = value.flatten()
             actions[step] = action
             logprobs[step] = logprob
-            logprobs_symbolic[step] = logprob_symbolic
 
             # TRY NOT TO MODIFY: execute the game and log data.
-            next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
-            next_done = np.logical_or(terminations, truncations)
-            rewards[step] = torch.tensor(reward).to(device).view(-1)
-            next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
+            next_obs, reward, done, info = envs.step(action.cpu().numpy())
+            
+            # Add RM reward shaping
+            rm_rewards = _get_rm_reward_batch(envs, action)
+            shaped_reward = torch.tensor(reward).to(device).view(-1) + torch.tensor(rm_rewards).to(device)
+            rewards[step] = shaped_reward
+            
+            next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(done).to(device)
 
-            if "final_info" in infos:
-                for info in infos["final_info"]:
-                    if info and "episode" in info:
-                        writer.add_scalar("episodic_return", info["episode"]["r"], global_step)
-                        writer.add_scalar("episodic_length", info["episode"]["l"], global_step)
-                        episodes_returns.append(info["episode"]["r"])
-                        episodes_lengths.append(info["episode"]["l"])
-                        if iteration % max(1, math.ceil(args.num_iterations / 10)) == 0 or iteration == args.num_iterations:
-                            old_len_ep_ret = len_ep_ret
-                            len_ep_ret = len(episodes_returns)
-                            num_eps = len_ep_ret - old_len_ep_ret
-                            mean_episodic_return = np.mean(episodes_returns[-num_eps:])
-                            mean_episodic_length = np.mean(episodes_lengths[-num_eps:])
-                            tot_mean_ret = np.mean(episodes_returns)
-                            tot_mean_len = np.mean(episodes_lengths)
-                            tqdm.write(f"global_step={global_step}, mean_episodic_return={mean_episodic_return}, mean_episodic_length={mean_episodic_length}, total_mean_return={tot_mean_ret}, total_mean_length={tot_mean_len}")
+            for item in info:
+                if "episode" in item.keys():
+                    writer.add_scalar("episodic_return", item["episode"]["r"], global_step)
+                    writer.add_scalar("episodic_length", item["episode"]["l"], global_step)
+                    episodes_returns.append(item["episode"]["r"])
+                    episodes_lengths.append(item["episode"]["l"])
+            if iteration % max(1, math.ceil(args.num_iterations / 10)) == 0 or iteration == args.num_iterations:
+                old_len_ep_ret = len_ep_ret
+                len_ep_ret = len(episodes_returns)
+                num_eps = len_ep_ret - old_len_ep_ret
+                mean_episodic_return = np.mean(episodes_returns[-num_eps:])
+                mean_episodic_length = np.mean(episodes_lengths[-num_eps:])
+                tot_mean_ret = np.mean(episodes_returns)
+                tot_mean_len = np.mean(episodes_lengths)
+                tqdm.write(f"global_step={global_step}, mean_episodic_return={mean_episodic_return}, mean_episodic_length={mean_episodic_length}, total_mean_return={tot_mean_ret}, total_mean_length={tot_mean_len}")
 
         # bootstrap value if not done
         with torch.no_grad():
@@ -212,7 +258,6 @@ if __name__ == "__main__":
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
-        b_logprobs_symbolic = logprobs_symbolic.reshape(-1)
         b_actions = actions.reshape((-1,) + envs.single_action_space.shape)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
@@ -229,18 +274,13 @@ if __name__ == "__main__":
 
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(b_obs[mb_inds], b_actions.long()[mb_inds])
                 logratio = newlogprob - b_logprobs[mb_inds]
-                logratio_symbolic = newlogprob - b_logprobs_symbolic[mb_inds]
                 ratio = logratio.exp()
-                ratio_symbolic = logratio_symbolic.exp()
 
                 with torch.no_grad():
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
                     clipfracs += [((ratio - 1.0).abs() > args.clip_coef).float().mean().item()]
-                    old_approx_kl_symbolic = (-logratio_symbolic).mean()
-                    approx_kl_symbolic = ((ratio_symbolic - 1) - logratio_symbolic).mean()
-                    clipfracs += [((ratio_symbolic - 1.0).abs() > args.clip_coef).float().mean().item()]
 
                 mb_advantages = b_advantages[mb_inds]
                 if args.norm_adv:
@@ -250,10 +290,6 @@ if __name__ == "__main__":
                 pg_loss1 = -mb_advantages * ratio
                 pg_loss2 = -mb_advantages * torch.clamp(ratio, 1 - args.clip_coef, 1 + args.clip_coef)
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-                pg_loss1_symbolic = -mb_advantages * ratio_symbolic
-                pg_loss2_symbolic = -mb_advantages * torch.clamp(ratio_symbolic, 1 - args.clip_coef, 1 + args.clip_coef)
-                pg_loss_symbolic = torch.max(pg_loss1_symbolic, pg_loss2_symbolic).mean()
 
                 # Value loss
                 newvalue = newvalue.view(-1)
@@ -271,15 +307,16 @@ if __name__ == "__main__":
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
                 entropy_loss = entropy.mean()
-                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef + pg_loss_symbolic
+                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef
 
                 optimizer.zero_grad()
                 loss.backward()
                 nn.utils.clip_grad_norm_(agent.parameters(), args.max_grad_norm)
                 optimizer.step()
 
-            if args.target_kl is not None and approx_kl > args.target_kl:
-                break
+            if args.target_kl is not None:
+                if approx_kl > args.target_kl:
+                    break
 
         y_pred, y_true = b_values.cpu().numpy(), b_returns.cpu().numpy()
         var_y = np.var(y_true)
@@ -297,43 +334,33 @@ if __name__ == "__main__":
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     if args.save_model:
-        os.makedirs(f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
-        model_path = f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_symloss_seed={args.seed}.pt"
+        os.makedirs(f"models/ppo_RM_{args.task}{args.run_code}", exist_ok=True)
+        model_path = f"models/ppo_RM_{args.task}{args.run_code}/ppo_RM_seed={args.seed}.pt"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
-        # Prevent tyro in the evaluation module from parsing the training CLI args
-        saved_argv = sys.argv.copy()
-        try:
-            sys.argv = [sys.argv[0]]
-            from ppo_eval import evaluate
+        # UNCOMMENT TO ENABLE EVALUATION AFTER TRAINING
+        # saved_argv = sys.argv.copy()
+        # try:
+        #     sys.argv = [sys.argv[0]]
+        #     from ppo_eval import evaluate
 
-            episodic_returns = evaluate(
-                model_path,
-                make_env,
-                args.env_id,
-                args.n_keys,
-                eval_episodes=1000,
-                run_name=f"{run_name}-eval",
-                seed=args.seed,
-                group_name=f"h_ppo_symloss_{args.group_name}_evals",
-                Model=Agent,
-                device=device,
-                track=False,
-                from_config=False,
-                random_color=args.random_color
-            )
-        finally:
-            sys.argv = saved_argv
-        for idx, episodic_return in enumerate(episodic_returns):
-            writer.add_scalar("eval/episodic_return", episodic_return, idx)
-
-        # if args.upload_model:
-        #     from cleanrl_utils.huggingface import push_to_hub
-
-        #     repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
-        #     repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
-        #     push_to_hub(args, episodic_returns, repo_id, "PPO", f"runs/{run_name}", f"videos/{run_name}-eval")
-
+        #     episodic_returns = evaluate(
+        #         model_path,
+        #         make_env,
+        #         args.env_id,
+        #         eval_episodes=1000,
+        #         run_name=f"{run_name}-eval",
+        #         seed=args.seed,
+        #         group_name=f"ppo_{args.group_name}_evals",
+        #         Model=Agent,
+        #         device=device,
+        #         track=False,
+        #         from_config=False,
+        #     )
+        # finally:
+        #     sys.argv = saved_argv
+        # for idx, episodic_return in enumerate(episodic_returns):
+        #     writer.add_scalar("eval/episodic_return", episodic_return, idx)
 
     envs.close()
     writer.close()

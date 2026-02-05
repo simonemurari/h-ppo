@@ -133,6 +133,8 @@ class OfficeWorldEnv(GridWorldEnv):
         self.has_coffee = False
         self.has_mail = False
         self.visited_rooms = OfficeWorldRoomVisits.VISITED_NONE
+        self.prev_has_coffee = False
+        self.prev_visited_rooms = OfficeWorldRoomVisits.VISITED_NONE
 
         # possible values for state variables
         self.num_has_coffee_values = 2
@@ -161,6 +163,9 @@ class OfficeWorldEnv(GridWorldEnv):
         if self.is_game_over:
             return self._get_state(), 0.0, True, self.get_observations()
         
+        self.prev_has_coffee = self.has_coffee
+        self.prev_visited_rooms = self.visited_rooms
+
         is_action_optimal = action in self.guide_agent()
 
         target_x, target_y = self.agent
@@ -282,6 +287,8 @@ class OfficeWorldEnv(GridWorldEnv):
         self.has_coffee = False
         self.has_mail = False
         self.visited_rooms = OfficeWorldRoomVisits.VISITED_NONE
+        self.prev_has_coffee = False
+        self.prev_visited_rooms = OfficeWorldRoomVisits.VISITED_NONE
         self.episode_steps = 0
         # update initial state according to the map layout
         self._update_state()

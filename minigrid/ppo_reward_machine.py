@@ -1,9 +1,11 @@
 # docs and experiment results can be found at https://docs.cleanrl.dev/rl-algorithms/ppo/#ppopy
+import math
 import os
 import random
 import time
 from config import Args
 import gymnasium as gym
+from doorkey_helpers import get_observables, apply_rules_batch
 import sys
 import minigrid
 from tqdm import tqdm, trange
@@ -14,8 +16,6 @@ import torch.optim as optim
 import tyro
 from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
-
-from doorkey_helpers import apply_rules_batch, get_observables
 
 
 def make_env(env_id, n_keys, idx, capture_video, run_name, random_color=True):
@@ -39,6 +39,101 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
 
+def _parse_observables(obs_list):
+    """Parse the list of tuples from get_observables into a dictionary."""
+    info = {
+        'locked': False,
+        'carrying_key_color': None,
+        'door_color': None,
+        'door_x': None,
+        'door_y': None,
+        'key_in_front': False,
+        'key_in_front_color': None,
+        'is_open': False,
+    }
+    
+    for item in obs_list:
+        name, data = item[0], item[1]
+        if name == 'locked':
+            info['locked'] = True
+        elif name == 'carryingKey':
+            info['carrying_key_color'] = data[0]
+        elif name == 'door':
+            info['door_color'] = data[0]
+            info['door_x'] = int(data[1])
+            info['door_y'] = int(data[2])
+        elif name == 'key':
+            # Key is in front if at position (0, 1)
+            if int(data[1]) == 0 and int(data[2]) == 1:
+                info['key_in_front'] = True
+                info['key_in_front_color'] = data[0]
+        elif name == 'open':
+            info['is_open'] = True
+
+    return info
+
+
+def _get_rm_reward_batch(prev_obs_batch, actions):
+    """Compute RM reward for a batch of observations and actions."""
+    obs_infos_batch = get_observables(prev_obs_batch)
+    suggested_actions_batch = apply_rules_batch(obs_infos_batch)
+    
+    rm_rewards = []
+    batch_size = prev_obs_batch.shape[0]
+    
+    for i in range(batch_size):
+        obs_infos = _parse_observables(obs_infos_batch[i])
+        suggested_actions = suggested_actions_batch[i]
+        action = actions[i].item() if hasattr(actions[i], 'item') else actions[i]
+        
+        reward = None
+        
+        # 1. Check Door Interaction (Open/Close/Drop)
+        if (obs_infos['carrying_key_color'] is not None 
+            and obs_infos['door_color'] is not None
+            and obs_infos['carrying_key_color'] == obs_infos['door_color']):
+            
+            if obs_infos['door_y'] == 1 and obs_infos['door_x'] == 0:
+                if action == 5 and not obs_infos['is_open']:
+                    reward = 0.005
+                elif action in suggested_actions:
+                    reward = 0.00125
+
+        # 2. Check Key Interaction (Pickup)
+        if reward is None and (obs_infos['key_in_front'] 
+            and obs_infos['carrying_key_color'] is None
+            and obs_infos['key_in_front_color'] is not None
+            and obs_infos['door_color'] is not None
+            and obs_infos['key_in_front_color'] == obs_infos['door_color']):
+            
+            if action == 3:  # picked up correct key
+                reward = 0.005
+            elif action in suggested_actions:
+                reward = 0.00125
+
+        # 3. Guidance / Default
+        if reward is None:
+            if not obs_infos['locked']:
+                # Moving towards goal
+                if action in suggested_actions: 
+                    reward = 0.00125
+                else:
+                    reward = -0.00125
+            elif obs_infos['carrying_key_color'] is None and action in suggested_actions:  # moving towards key
+                reward = 0.00125
+            elif (obs_infos['carrying_key_color'] is not None 
+                and obs_infos['door_color'] is not None
+                and obs_infos['carrying_key_color'] == obs_infos['door_color']
+                and action in suggested_actions):  # moving towards door
+                reward = 0.00125
+            else:
+                reward = -0.00125 # default small negative reward for not following suggestion
+
+        rm_rewards.append(reward)
+
+    
+    return rm_rewards
+
 
 class Agent(nn.Module):
     def __init__(self, envs):
@@ -57,8 +152,6 @@ class Agent(nn.Module):
             nn.Tanh(),
             layer_init(nn.Linear(64, envs.single_action_space.n), std=0.01),
         )
-        self.conf_level = 0.8
-        self.num_actions = envs.single_action_space.n
 
     def get_value(self, x):
         return self.critic(x)
@@ -69,18 +162,6 @@ class Agent(nn.Module):
         if action is None:
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(x)
-    
-    def get_logprob_symbolic(self, x, action):
-        suggested_actions_batch = apply_rules_batch(get_observables(x[:, 4:]))
-        torch_probs = torch.ones((x.shape[0], self.num_actions), device=x.device) * (1.0 - self.conf_level)
-        for i in range(x.shape[0]):
-            suggested_actions_list = suggested_actions_batch[i]
-            for suggested_action in suggested_actions_list:
-                if suggested_action is not None:
-                    torch_probs[i, suggested_action] = self.conf_level
-        torch_probs = torch_probs / torch_probs.sum(dim=-1, keepdim=True)
-        probs = Categorical(probs=torch_probs)
-        return probs.log_prob(action)
 
 
 if __name__ == "__main__":
@@ -100,7 +181,7 @@ if __name__ == "__main__":
             name=run_name,
             monitor_gym=True,
             save_code=True,
-            group=f"h_ppo_symloss_{args.group_name}"
+            group=f"ppo_RM_{args.group_name}"
         )
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
@@ -134,7 +215,6 @@ if __name__ == "__main__":
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
     actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    logprobs_symbolic = torch.zeros((args.num_steps, args.num_envs)).to(device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -164,16 +244,18 @@ if __name__ == "__main__":
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(next_obs)
-                logprob_symbolic = agent.get_logprob_symbolic(next_obs, action)
                 values[step] = value.flatten()
             actions[step] = action
             logprobs[step] = logprob
-            logprobs_symbolic[step] = logprob_symbolic
 
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
-            rewards[step] = torch.tensor(reward).to(device).view(-1)
+            
+            # Add RM reward shaping using previous observation (before step)
+            rm_rewards = _get_rm_reward_batch(obs[step][:, 4:], action)
+            shaped_reward = torch.tensor(reward).to(device).view(-1) + torch.tensor(rm_rewards).to(device)
+            rewards[step] = shaped_reward
             next_obs, next_done = torch.Tensor(next_obs).to(device), torch.Tensor(next_done).to(device)
 
             if "final_info" in infos:
@@ -212,7 +294,6 @@ if __name__ == "__main__":
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
-        b_logprobs_symbolic = logprobs_symbolic.reshape(-1)
         b_actions = actions.reshape((-1,) + envs.single_action_space.shape)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
@@ -229,18 +310,13 @@ if __name__ == "__main__":
 
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(b_obs[mb_inds], b_actions.long()[mb_inds])
                 logratio = newlogprob - b_logprobs[mb_inds]
-                logratio_symbolic = newlogprob - b_logprobs_symbolic[mb_inds]
                 ratio = logratio.exp()
-                ratio_symbolic = logratio_symbolic.exp()
 
                 with torch.no_grad():
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
                     clipfracs += [((ratio - 1.0).abs() > args.clip_coef).float().mean().item()]
-                    old_approx_kl_symbolic = (-logratio_symbolic).mean()
-                    approx_kl_symbolic = ((ratio_symbolic - 1) - logratio_symbolic).mean()
-                    clipfracs += [((ratio_symbolic - 1.0).abs() > args.clip_coef).float().mean().item()]
 
                 mb_advantages = b_advantages[mb_inds]
                 if args.norm_adv:
@@ -250,10 +326,6 @@ if __name__ == "__main__":
                 pg_loss1 = -mb_advantages * ratio
                 pg_loss2 = -mb_advantages * torch.clamp(ratio, 1 - args.clip_coef, 1 + args.clip_coef)
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-                pg_loss1_symbolic = -mb_advantages * ratio_symbolic
-                pg_loss2_symbolic = -mb_advantages * torch.clamp(ratio_symbolic, 1 - args.clip_coef, 1 + args.clip_coef)
-                pg_loss_symbolic = torch.max(pg_loss1_symbolic, pg_loss2_symbolic).mean()
 
                 # Value loss
                 newvalue = newvalue.view(-1)
@@ -271,7 +343,7 @@ if __name__ == "__main__":
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
                 entropy_loss = entropy.mean()
-                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef + pg_loss_symbolic
+                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -297,8 +369,8 @@ if __name__ == "__main__":
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     if args.save_model:
-        os.makedirs(f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
-        model_path = f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_symloss_seed={args.seed}.pt"
+        os.makedirs(f"models/ppo_RM_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
+        model_path = f"models/ppo_RM_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/ppo_RM_seed={args.seed}.pt"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
         # Prevent tyro in the evaluation module from parsing the training CLI args
@@ -315,7 +387,7 @@ if __name__ == "__main__":
                 eval_episodes=1000,
                 run_name=f"{run_name}-eval",
                 seed=args.seed,
-                group_name=f"h_ppo_symloss_{args.group_name}_evals",
+                group_name=f"ppo_RM_{args.group_name}_evals",
                 Model=Agent,
                 device=device,
                 track=False,
