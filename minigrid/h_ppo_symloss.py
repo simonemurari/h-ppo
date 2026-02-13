@@ -10,6 +10,7 @@ from tqdm import tqdm, trange
 import numpy as np
 import torch
 import torch.nn as nn
+import math
 import torch.optim as optim
 import tyro
 from torch.distributions.categorical import Categorical

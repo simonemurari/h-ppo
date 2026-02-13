@@ -123,17 +123,19 @@ class WaterWorldEnv(BaseEnv):
     # when a seed is fixed, a derived seed is used every time the environment is restarted,
     # helps with reproducibility while generalizing to different starting positions
     RANDOM_RESTART = "random_restart"
+    MAX_STEPS = "max_steps"
+    ENABLE_REWARD_SHAPING = "enable_rew_shaping"
 
     def __init__(self, params, sequences, obs_to_avoid=None):
         super().__init__(params)
 
-        self.random_restart = utils.get_param(params, WaterWorldEnv.RANDOM_RESTART, True)
+        self.random_restart = utils.get_param(params, WaterWorldEnv.RANDOM_RESTART, False)
         self.num_resets = 0
 
         # check input sequence
         self._check_sequences(sequences)
 
-        # sequences of balls that have to be touched
+        # sequences of balls that have to be touchedis_game_over
         self.sequences = sequences
         self.state = None  # current index in each sequence
         self.last_strict_obs = None  # last thing observed (used only for strict sequences)
@@ -156,12 +158,19 @@ class WaterWorldEnv(BaseEnv):
         self.agent = None
         self.balls = []
 
-        self.observation_space = spaces.Discrete(52)  # not exactly correct....
+        # 4 (agent pos + vel) + num_balls * 4 (rel pos + rel vel) if use_velocities
+        n_features = 4 + self.ball_num_colors * self.ball_num_per_color * (4 if self.use_velocities else 2)
+        self.observation_space = spaces.Box(low=-2.0, high=2.0, shape=(n_features,), dtype=np.float32)
         self.action_space = spaces.Discrete(5)
 
         # rendering attributes
         self.is_rendering = False
         self.game_display = None
+
+        # reward shaping and episode tracking
+        self.reward_shaping_enabled = utils.get_param(params, WaterWorldEnv.ENABLE_REWARD_SHAPING, False)
+        self.max_steps = utils.get_param(params, WaterWorldEnv.MAX_STEPS, self.max_x / 2)
+        self.episode_steps = 0
 
     def _check_sequences(self, sequences):
         for sequence in sequences:
@@ -192,6 +201,9 @@ class WaterWorldEnv(BaseEnv):
     def get_observations(self):
         return {b.color for b in self._get_current_collisions()}
 
+    def get_observations_as_dict(self):
+        return {"observations": self.get_observations()}
+
     def get_observables(self):
         return [WaterWorldObservations.RED, WaterWorldObservations.GREEN, WaterWorldObservations.BLUE,
                 WaterWorldObservations.CYAN, WaterWorldObservations.MAGENTA, WaterWorldObservations.YELLOW]
@@ -206,14 +218,52 @@ class WaterWorldEnv(BaseEnv):
                 collisions.add(b)
         return collisions
 
+    def _get_suggested_actions(self, target_color):
+        """Returns a list of suggested actions to guide the agent towards balls of the target color."""
+        suggested_actions = []
+        for ball in self.balls:
+            if ball.color == target_color:
+                dx = ball.pos[0] - self.agent.pos[0]
+                dy = ball.pos[1] - self.agent.pos[1]
+
+                if dx > 0:
+                    suggested_actions.append(WaterWorldActions.RIGHT)
+                if dx < 0:
+                    suggested_actions.append(WaterWorldActions.LEFT)
+                if dy > 0:
+                    suggested_actions.append(WaterWorldActions.UP)
+                if dy < 0:
+                    suggested_actions.append(WaterWorldActions.DOWN)
+
+        return suggested_actions
+
+    def guide_agent(self):
+        """Returns a list of suggested actions based on the first sequence's current subgoal."""
+        current_index = self.state[0]
+        sequence = self.sequences[0].sequence
+        if current_index < len(sequence):
+            subgoal = sequence[current_index]
+            if isinstance(subgoal, str):
+                return self._get_suggested_actions(subgoal)
+        return []
+
+    def _get_reward(self, is_action_suggested):
+        if self.reward_shaping_enabled and is_action_suggested:
+            return 1 if self.is_goal_achieved() else 0.01
+        else:
+            return 1 - 0.9 * (self.episode_steps / self.max_steps) if self.is_goal_achieved() else 0
+
     def is_terminal(self):
-        return self.is_game_over
+        return self.is_game_over or self.episode_steps >= self.max_steps
 
     def step(self, action, elapsed_time=0.1):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
         if self.is_game_over:
-            return self._get_features(), 0.0, True, self.get_observations()
+            return self._get_features(), 0.0, True, self.get_observations_as_dict()
+
+        # compute suggested actions before applying the action
+        is_action_optimal = action in self.guide_agent()
 
         # updating the agents velocity
         self.agent.step(action)
@@ -245,23 +295,30 @@ class WaterWorldEnv(BaseEnv):
                 # reverse direction
                 b.vel *= np.array([1.0, -1.0])
 
+        self.episode_steps += 1
+
+        self.prev_state = list(self.state)
+
         observations = self.get_observations()
-        reward, is_done = self._step(observations)
+        reward, is_done = self._step(observations, is_action_optimal)
 
         if is_done:
             self.is_game_over = True
 
-        return self._get_features(), reward, is_done, observations
+        return self._get_features(), reward, is_done, self.get_observations_as_dict()
 
-    def _step(self, observations):
+    def _step(self, observations, is_action_optimal=False):
         reached_terminal_state = self._update_state(observations)
         if reached_terminal_state:
             return 0.0, True
 
         if self.is_goal_achieved():
-            return 1.0, True
+            return self._get_reward(is_action_optimal), True
 
-        return 0.0, False
+        if self.episode_steps >= self.max_steps:
+            return 0.0, True
+
+        return self._get_reward(is_action_optimal), False
 
     def _update_state(self, observations):
         for i in range(0, len(self.sequences)):
@@ -271,7 +328,7 @@ class WaterWorldEnv(BaseEnv):
                 if len(observations) == 0:
                     self.last_strict_obs = None
                 elif len(observations) == 1:
-                    if not self._is_subgoal_in_observation(self.last_strict_obs, observations):
+                    if self.last_strict_obs is None or not self._is_subgoal_in_observation(self.last_strict_obs, observations):
                         if self._is_subgoal_in_observation(sequence.sequence[current_index], observations):
                             self.last_strict_obs = sequence.sequence[current_index]
                             self.state[i] = current_index + 1
@@ -374,6 +431,8 @@ class WaterWorldEnv(BaseEnv):
 
         # reset current index in each sequence
         self.state = [0] * len(self.sequences)
+        self.prev_state = [0] * len(self.sequences)
+        self.episode_steps = 0
 
         return self._get_features()
 

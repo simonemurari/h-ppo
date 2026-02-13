@@ -46,7 +46,10 @@ class Args:
     @property
     def env_id(self) -> str:
         """the id of the environment"""
-        return f"gym_subgoal_automata:OfficeWorld{self.task}-v0"
+        if "Patrol" in self.task or "Coffee" in self.task:
+            return f"gym_subgoal_automata:OfficeWorld{self.task}-v0"
+        else:
+            return f"gym_subgoal_automata:WaterWorld{self.task}-v0"
     
     @property
     def group_name(self) -> str:

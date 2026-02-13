@@ -13,6 +13,7 @@ from config import Args
 import gym
 import gym.wrappers
 from gym import spaces
+from gym_subgoal_automata.envs.officeworld.officeworld_env import OfficeWorldRoomVisits
 import numpy as np
 import torch
 from torch.distributions.categorical import Categorical
@@ -96,9 +97,6 @@ def _get_rm_reward_batch(envs, actions):
     
     for i in range(len(envs.envs)):
         env = envs.envs[i].unwrapped
-        prev_visited_rooms = env.prev_visited_rooms
-        prev_has_coffee = env.prev_has_coffee
-        
         action = actions[i].item()
         suggested_actions = env.guide_agent()
         is_action_suggested = action in suggested_actions
@@ -106,19 +104,26 @@ def _get_rm_reward_batch(envs, actions):
         reward = 0
         task_name = env.__class__.__name__
         
-        # 1. DeliverCoffee and DeliverCoffeeAndMail
+        # 1. OfficeWorld: DeliverCoffee and DeliverCoffeeAndMail
         if "DeliverCoffee" in task_name:
-            if not prev_has_coffee and env.has_coffee:
+            if not env.prev_has_coffee and env.has_coffee:
+                reward = 0.005
+            elif is_action_suggested:
+                reward = 0.00025
+        
+        # 2. OfficeWorld: Patrol worlds
+        elif "Patrol" in task_name:
+            if env.prev_visited_rooms != env.visited_rooms \
+                    and env.visited_rooms <= OfficeWorldRoomVisits.VISITED_AB:
                 reward = 0.005
         
-        # 2. Patrol worlds
-        elif "Patrol" in task_name:
-            if prev_visited_rooms != env.visited_rooms:
+        # 3. WaterWorld
+        elif "WaterWorld" in task_name:
+            if env.prev_state[0] != env.state[0] and env.state[0] <= 2:
                 reward = 0.005
-                
-        # 3. Handle action matches suggested actions 
-        if reward == 0 and is_action_suggested:
-            reward = 0.00025            
+            elif is_action_suggested:
+                reward = 0.00025
+
         rm_rewards.append(reward)
         
     return rm_rewards

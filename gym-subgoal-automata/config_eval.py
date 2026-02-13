@@ -26,7 +26,7 @@ class Args:
     eval_type: str = "standard"
     """the type of evaluation: standard or random_rules or h_ppo"""
 
-    task_model: str = "DeliverCoffee"  # PatrolAB
+    task_model: str = "DeliverCoffee"  # PatrolAB, RedGreenEnv
     """the task that the agent has been trained on"""
 
     task: str = "DeliverCoffeeAndMail" # PatrolABC
@@ -35,7 +35,10 @@ class Args:
     @property
     def env_id(self) -> str:
         """the id of the environment"""
-        return f"gym_subgoal_automata:OfficeWorld{self.task}-v0"
+        if "Patrol" in self.task or "Coffee" in self.task:
+            return f"gym_subgoal_automata:OfficeWorld{self.task}-v0"
+        else:
+            return f"gym_subgoal_automata:WaterWorld{self.task}-v0"
 
     epsilon: Optional[float] = None
     """the epsilon value for the eval with h_ppo_eval.py"""

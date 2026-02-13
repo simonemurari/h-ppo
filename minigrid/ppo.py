@@ -5,6 +5,7 @@ import time
 from config import Args
 import gymnasium as gym
 import sys
+import math
 import minigrid
 from tqdm import tqdm, trange
 import numpy as np

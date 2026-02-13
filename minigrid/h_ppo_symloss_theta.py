@@ -8,6 +8,7 @@ import sys
 import minigrid
 from tqdm import tqdm, trange
 import numpy as np
+import math
 import torch
 import torch.nn as nn
 import torch.optim as optim

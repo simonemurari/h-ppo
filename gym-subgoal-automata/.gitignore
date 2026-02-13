@@ -113,6 +113,7 @@ wandb/
 find_params.py
 find_params_delay.sh
 run_5_seeds.sh
+run_5_seeds_eval.sh
 dqn.py
 dqn_rules_early_stopping.py
 config_dqn.py
