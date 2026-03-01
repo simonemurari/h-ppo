@@ -33,7 +33,7 @@ class Args:
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
-    save_model: bool = True
+    save_model: bool = False
     """whether to save the model into a .pt file"""
 
     # Algorithm specific arguments

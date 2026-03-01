@@ -1,0 +1,2 @@
+The seeds that were used to train the models are:
+700, 200, 70, 75, 95

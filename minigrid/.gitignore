@@ -23,3 +23,5 @@ doorkey_old.py
 regex_wandb.txt
 *.csv
 aggregate_evals/
+run_5_seeds.sh
+run_5_seeds_eval.sh
