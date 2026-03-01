@@ -5,7 +5,7 @@ In this repository you can find the code to run the PPO algorithm and its neuros
 ### Repository Structure
 
 - **Baseline**:
-  `ppo.py` is the standard PPO algorithm and `ppo_reward_machine.py` is the reward machine variant where non-suggested actions are penalized.
+  `ppo.py` is the standard PPO algorithm and `ppo_reward_machine.py` is the reward machine variant.
 
 - **Neurosymbolic variants**:
   `h_ppo_product.py`, `h_ppo_symloss.py`, `h_ppo_symloss_eps.py`, `h_ppo_symloss_theta.py` are the neurosymbolic variants of PPO that integrate symbolic guidance into the learning process.
