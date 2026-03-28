@@ -25,3 +25,5 @@ regex_wandb.txt
 aggregate_evals/
 run_5_seeds.sh
 run_5_seeds_eval.sh
+algorithm_analysis.md
+papers/

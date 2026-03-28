@@ -1,6 +1,7 @@
 import numpy as np
 from minigrid.core.constants import IDX_TO_COLOR
 import torch
+import gymnasium as gym
 
 DOOR_STATES = ["open", "closed", "locked"]
 VIEW_SIZE = 7
@@ -19,6 +20,12 @@ action_map = {
             "pickup": 3,  # Pickup key
             "toggle": 5,  # Open/Unlock door
         }
+
+COLOR_ORDER = [IDX_TO_COLOR[idx] for idx in sorted(IDX_TO_COLOR.keys())]
+COLOR_TO_SLOT = {color: idx for idx, color in enumerate(COLOR_ORDER)}
+GROUNDED_VECTOR_DIM = 64
+MAX_DX = MID_POINT
+MAX_DY = VIEW_SIZE - 1
 
 
 def apply_rules_batch(batch_observables):
@@ -244,3 +251,153 @@ def get_observables(raw_obs_batch):
         batch_obs.append(obs)
 
     return batch_obs
+
+
+def _normalize_dx(dx):
+    return float(np.clip(dx / max(1, MAX_DX), -1.0, 1.0))
+
+
+def _normalize_dy(dy):
+    return float(np.clip(dy / max(1, MAX_DY), -1.0, 1.0))
+
+
+def _nearest_entity_by_color(entities, color):
+    candidates = []
+    for entity in entities:
+        attrs = entity[1]
+        if attrs[0] == color and len(attrs) >= 3:
+            candidates.append((attrs[1], attrs[2]))
+    if not candidates:
+        return None
+    return min(candidates, key=lambda pos: abs(pos[0]) + abs(pos[1]))
+
+
+def observables_to_grounded_vectors(batch_observables):
+    """Converts parsed observables to fixed 64-D grounded predicate vectors.
+
+    Vector layout:
+    - [0:6] key presence by color
+    - [6:12] key dx by color
+    - [12:18] key dy by color
+    - [18:24] carrying-key color one-hot
+    - [24:30] door presence by color
+    - [30:36] door locked by color
+    - [36:42] door closed by color
+    - [42:48] door dx by color
+    - [48:54] door dy by color
+    - [54] goal present
+    - [55] goal dx
+    - [56] goal dy
+    - [57] wall directly in front
+    - [58] wall directly left
+    - [59] wall directly right
+    - [60] normalized wall count
+    - [61] any key signal present
+    - [62] any door signal present
+    - [63] bias term
+    """
+    vectors = np.zeros((len(batch_observables), GROUNDED_VECTOR_DIM), dtype=np.float32)
+
+    for idx, observables in enumerate(batch_observables):
+        keys = [o for o in observables if o[0] == "key"]
+        doors = [o for o in observables if o[0] == "door"]
+        goals = [o for o in observables if o[0] == "goal"]
+        walls = [o for o in observables if o[0] == "wall"]
+        carrying_keys = [o for o in observables if o[0] == "carryingKey"]
+        locked_doors = [o for o in observables if o[0] == "locked"]
+        closed_doors = [o for o in observables if o[0] == "closed"]
+
+        for color, slot in COLOR_TO_SLOT.items():
+            nearest_key = _nearest_entity_by_color(keys, color)
+            if nearest_key is not None:
+                key_dx, key_dy = nearest_key
+                vectors[idx, slot] = 1.0
+                vectors[idx, 6 + slot] = _normalize_dx(key_dx)
+                vectors[idx, 12 + slot] = _normalize_dy(key_dy)
+
+            nearest_door = _nearest_entity_by_color(doors, color)
+            if nearest_door is not None:
+                door_dx, door_dy = nearest_door
+                vectors[idx, 24 + slot] = 1.0
+                vectors[idx, 42 + slot] = _normalize_dx(door_dx)
+                vectors[idx, 48 + slot] = _normalize_dy(door_dy)
+
+        for carrying in carrying_keys:
+            carrying_color = carrying[1][0]
+            if carrying_color in COLOR_TO_SLOT:
+                vectors[idx, 18 + COLOR_TO_SLOT[carrying_color]] = 1.0
+
+        for locked in locked_doors:
+            locked_color = locked[1][0]
+            if locked_color in COLOR_TO_SLOT:
+                vectors[idx, 30 + COLOR_TO_SLOT[locked_color]] = 1.0
+
+        for closed in closed_doors:
+            closed_color = closed[1][0]
+            if closed_color in COLOR_TO_SLOT:
+                vectors[idx, 36 + COLOR_TO_SLOT[closed_color]] = 1.0
+
+        if goals:
+            nearest_goal = min(goals, key=lambda goal: abs(goal[1][0]) + abs(goal[1][1]))
+            vectors[idx, 54] = 1.0
+            vectors[idx, 55] = _normalize_dx(nearest_goal[1][0])
+            vectors[idx, 56] = _normalize_dy(nearest_goal[1][1])
+
+        wall_positions = {(wall[1][0], wall[1][1]) for wall in walls if len(wall[1]) >= 2}
+        vectors[idx, 57] = 1.0 if (0, 1) in wall_positions else 0.0
+        vectors[idx, 58] = 1.0 if (-1, 0) in wall_positions else 0.0
+        vectors[idx, 59] = 1.0 if (1, 0) in wall_positions else 0.0
+        vectors[idx, 60] = min(len(wall_positions) / float(VIEW_SIZE * VIEW_SIZE), 1.0)
+
+        vectors[idx, 61] = 1.0 if (len(keys) > 0 or len(carrying_keys) > 0) else 0.0
+        vectors[idx, 62] = 1.0 if len(doors) > 0 else 0.0
+        vectors[idx, 63] = 1.0
+
+    norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+    vectors = vectors / np.maximum(norms, 1e-8)
+    return vectors.astype(np.float32)
+
+
+def get_grounded_predicate_vectors(raw_obs_batch):
+    """Batched wrapper: raw observations -> observables -> grounded vectors."""
+    return observables_to_grounded_vectors(get_observables(raw_obs_batch))
+
+
+class MixedKeyEnvWrapper(gym.Wrapper):
+    """Randomly samples n_keys ∈ {1, 2} at each episode reset.
+
+    Useful for mixed training: with probability p_2key the episode uses 2 keys
+    (one matching the door, one distractor), otherwise 1 key as usual.
+    The observation and action spaces are identical in both cases, so this is
+    a transparent drop-in: just wrap the env in make_env when p_2key > 0.
+
+    Args:
+        env_id:       gymnasium env ID (e.g. 'MiniGrid-DoorKey-8x8-v0')
+        p_2key:       probability of using n_keys=2 at each reset (default 0.1)
+        random_color: whether to randomize key/door color (same as DoorKeyEnv)
+    """
+
+    def __init__(self, env_id: str, p_2key: float = 0.1, random_color: bool = True):
+        self._env_id = env_id
+        self._p_2key = p_2key
+        self._random_color = random_color
+        # Build initial env with n_keys=1 to initialise parent
+        env = self._build_inner(n_keys=1)
+        super().__init__(env)
+
+    def _build_inner(self, n_keys: int) -> gym.Env:
+        """Creates a fresh FlattenObservation(FilterObservation(DoorKeyEnv)) stack."""
+        env = gym.make(self._env_id, n_keys=n_keys, random_color=self._random_color)
+        env = gym.wrappers.FlattenObservation(
+            gym.wrappers.FilterObservation(env, filter_keys=["image", "direction"])
+        )
+        return env
+
+    def reset(self, **kwargs):
+        # Sample n_keys for this episode
+        n_keys = 2 if np.random.random() < self._p_2key else 1
+        self.env = self._build_inner(n_keys)
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        return self.env.step(action)

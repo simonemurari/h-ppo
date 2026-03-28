@@ -8,25 +8,22 @@ import sys
 import minigrid
 from tqdm import tqdm, trange
 import numpy as np
+import math
 import torch
 import torch.nn as nn
-import math
 import torch.optim as optim
 import tyro
 from torch.distributions.categorical import Categorical
 from torch.utils.tensorboard import SummaryWriter
 
-from doorkey_helpers import apply_rules_batch, get_observables, MixedKeyEnvWrapper
+from doorkey_helpers import apply_rules_batch, get_observables
 
 
-def make_env(env_id, n_keys, idx, capture_video, run_name, random_color=True, p_2key=0.0):
+def make_env(env_id, n_keys, idx, capture_video, run_name, random_color=True):
     def thunk():
         if capture_video and idx == 0:
             env = gym.make(env_id, random_color=random_color, render_mode="rgb_array", n_keys=n_keys)
             env = gym.wrappers.RecordVideo(env, f"videos/{run_name}")
-        elif p_2key > 0.0:
-            # Mixed training: randomly uses n_keys=2 with probability p_2key at each reset
-            env = MixedKeyEnvWrapper(env_id, p_2key=p_2key, random_color=random_color)
         else:
             env = gym.make(env_id, n_keys=n_keys, random_color=random_color)
             env = gym.wrappers.FlattenObservation(
@@ -67,24 +64,36 @@ class Agent(nn.Module):
     def get_value(self, x):
         return self.critic(x)
 
+    def get_policy_logits(self, x):
+        return self.actor(x)
+
     def get_action_and_value(self, x, action=None):
-        logits = self.actor(x)
+        logits = self.get_policy_logits(x)
         probs = Categorical(logits=logits)
         if action is None:
             action = probs.sample()
         return action, probs.log_prob(action), probs.entropy(), self.critic(x)
-    
-    def get_logprob_symbolic(self, x, action):
+
+    def get_sym_probs(self, x):
         suggested_actions_batch = apply_rules_batch(get_observables(x[:, 4:]))
-        torch_probs = torch.ones((x.shape[0], self.num_actions), device=x.device) * (1.0 - self.conf_level)
+        sym_probs = torch.ones((x.shape[0], self.num_actions), device=x.device) * (1.0 - self.conf_level)
+        has_rule = torch.zeros(x.shape[0], dtype=torch.bool, device=x.device)
+
         for i in range(x.shape[0]):
             suggested_actions_list = suggested_actions_batch[i]
             for suggested_action in suggested_actions_list:
                 if suggested_action is not None:
-                    torch_probs[i, suggested_action] = self.conf_level
-        torch_probs = torch_probs / torch_probs.sum(dim=-1, keepdim=True)
-        probs = Categorical(probs=torch_probs)
-        return probs.log_prob(action)
+                    has_rule[i] = True
+                    sym_probs[i, suggested_action] = self.conf_level
+
+        sym_probs = sym_probs / sym_probs.sum(dim=-1, keepdim=True)
+
+        return sym_probs, has_rule
+    
+
+def linear_schedule(start_e: float, end_e: float, duration: int, t: int):
+    slope = (end_e - start_e) / duration
+    return max(slope * t + start_e, end_e)
 
 
 if __name__ == "__main__":
@@ -104,7 +113,7 @@ if __name__ == "__main__":
             name=run_name,
             monitor_gym=True,
             save_code=True,
-            group=f"h_ppo_symloss_{args.group_name}"
+            group=f"h_ppo_kdloss_full_{args.group_name}"
         )
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
@@ -128,7 +137,7 @@ if __name__ == "__main__":
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.n_keys, i, args.capture_video, run_name, args.random_color, args.p_2key) for i in range(args.num_envs)],
+        [make_env(args.env_id, args.n_keys, i, args.capture_video, run_name, args.random_color) for i in range(args.num_envs)],
     )
     assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
     agent = Agent(envs).to(device)
@@ -138,7 +147,8 @@ if __name__ == "__main__":
     obs = torch.zeros((args.num_steps, args.num_envs) + envs.single_observation_space.shape).to(device)
     actions = torch.zeros((args.num_steps, args.num_envs) + envs.single_action_space.shape).to(device)
     logprobs = torch.zeros((args.num_steps, args.num_envs)).to(device)
-    logprobs_symbolic = torch.zeros((args.num_steps, args.num_envs)).to(device)
+    sym_probs_buffer = torch.zeros((args.num_steps, args.num_envs, agent.num_actions), device=device)
+    has_rule_buffer = torch.zeros((args.num_steps, args.num_envs), dtype=torch.bool, device=device)
     rewards = torch.zeros((args.num_steps, args.num_envs)).to(device)
     dones = torch.zeros((args.num_steps, args.num_envs)).to(device)
     values = torch.zeros((args.num_steps, args.num_envs)).to(device)
@@ -167,13 +177,13 @@ if __name__ == "__main__":
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
+                sym_probs, has_rule = agent.get_sym_probs(next_obs)
                 action, logprob, _, value = agent.get_action_and_value(next_obs)
-                logprob_symbolic = agent.get_logprob_symbolic(next_obs, action)
                 values[step] = value.flatten()
+                sym_probs_buffer[step] = sym_probs
+                has_rule_buffer[step] = has_rule
             actions[step] = action
             logprobs[step] = logprob
-            logprobs_symbolic[step] = logprob_symbolic
-
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
@@ -216,37 +226,40 @@ if __name__ == "__main__":
         # flatten the batch
         b_obs = obs.reshape((-1,) + envs.single_observation_space.shape)
         b_logprobs = logprobs.reshape(-1)
-        b_logprobs_symbolic = logprobs_symbolic.reshape(-1)
         b_actions = actions.reshape((-1,) + envs.single_action_space.shape)
         b_advantages = advantages.reshape(-1)
         b_returns = returns.reshape(-1)
         b_values = values.reshape(-1)
+        b_sym_probs = sym_probs_buffer.reshape(-1, agent.num_actions)
+        b_has_rule = has_rule_buffer.reshape(-1)
 
         # Optimizing the policy and value network
         b_inds = np.arange(args.batch_size)
         clipfracs = []
+        kd_losses = []
+        kd_active_fracs = []
+
         for epoch in range(args.update_epochs):
             np.random.shuffle(b_inds)
             for start in range(0, args.batch_size, args.minibatch_size):
                 end = start + args.minibatch_size
                 mb_inds = b_inds[start:end]
 
+                mb_advantages_raw = b_advantages[mb_inds]
+                mb_sym_probs = b_sym_probs[mb_inds]
+                mb_has_rule = b_has_rule[mb_inds]
+
                 _, newlogprob, entropy, newvalue = agent.get_action_and_value(b_obs[mb_inds], b_actions.long()[mb_inds])
                 logratio = newlogprob - b_logprobs[mb_inds]
-                logratio_symbolic = newlogprob - b_logprobs_symbolic[mb_inds]
                 ratio = logratio.exp()
-                ratio_symbolic = logratio_symbolic.exp()
 
                 with torch.no_grad():
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
                     clipfracs += [((ratio - 1.0).abs() > args.clip_coef).float().mean().item()]
-                    old_approx_kl_symbolic = (-logratio_symbolic).mean()
-                    approx_kl_symbolic = ((ratio_symbolic - 1) - logratio_symbolic).mean()
-                    clipfracs += [((ratio_symbolic - 1.0).abs() > args.clip_coef).float().mean().item()]
 
-                mb_advantages = b_advantages[mb_inds]
+                mb_advantages = mb_advantages_raw
                 if args.norm_adv:
                     mb_advantages = (mb_advantages - mb_advantages.mean()) / (mb_advantages.std() + 1e-8)
 
@@ -254,10 +267,6 @@ if __name__ == "__main__":
                 pg_loss1 = -mb_advantages * ratio
                 pg_loss2 = -mb_advantages * torch.clamp(ratio, 1 - args.clip_coef, 1 + args.clip_coef)
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
-
-                pg_loss1_symbolic = -mb_advantages * ratio_symbolic
-                pg_loss2_symbolic = -mb_advantages * torch.clamp(ratio_symbolic, 1 - args.clip_coef, 1 + args.clip_coef)
-                pg_loss_symbolic = torch.max(pg_loss1_symbolic, pg_loss2_symbolic).mean()
 
                 # Value loss
                 newvalue = newvalue.view(-1)
@@ -274,8 +283,23 @@ if __name__ == "__main__":
                 else:
                     v_loss = 0.5 * ((newvalue - b_returns[mb_inds]) ** 2).mean()
 
+                kd_loss = torch.tensor(0.0).to(device)
+
+                # Apply rule distillation only where the rule teacher exists and advantage is negative.
+                active_mask = mb_has_rule
+                if active_mask.any():
+                    logits = agent.get_policy_logits(b_obs[mb_inds])
+                    kd_loss = nn.functional.cross_entropy(
+                        logits[active_mask],
+                        mb_sym_probs[active_mask],
+                        reduction="mean",
+                    )
+
+                kd_losses.append(kd_loss.item())
+                kd_active_fracs.append(active_mask.float().mean().item())
+
                 entropy_loss = entropy.mean()
-                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef + pg_loss_symbolic
+                loss = pg_loss - args.ent_coef * entropy_loss + v_loss * args.vf_coef + kd_loss
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -297,12 +321,14 @@ if __name__ == "__main__":
         writer.add_scalar("losses/old_approx_kl", old_approx_kl.item(), global_step)
         writer.add_scalar("losses/approx_kl", approx_kl.item(), global_step)
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
+        writer.add_scalar("losses/kd_loss", np.mean(kd_losses) if kd_losses else 0.0, global_step)
+        writer.add_scalar("losses/kd_active_frac", np.mean(kd_active_fracs) if kd_active_fracs else 0.0, global_step)
         writer.add_scalar("losses/explained_variance", explained_var, global_step)
         writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
 
     if args.save_model:
-        os.makedirs(f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
-        model_path = f"models/h_ppo_symloss_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_symloss_seed={args.seed}.pt"
+        os.makedirs(f"models/h_ppo_kdloss_full_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}", exist_ok=True)
+        model_path = f"models/h_ppo_kdloss_full_{args.size_env}x{args.size_env}_{args.n_keys}keys{args.run_code}/h_ppo_kdloss_full_seed={args.seed}.pt"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
         # Prevent tyro in the evaluation module from parsing the training CLI args
@@ -319,7 +345,7 @@ if __name__ == "__main__":
                 eval_episodes=1000,
                 run_name=f"{run_name}-eval",
                 seed=args.seed,
-                group_name=f"h_ppo_symloss_{args.group_name}_evals",
+                group_name=f"h_ppo_kdloss_full_{args.group_name}_evals",
                 Model=Agent,
                 device=device,
                 track=False,

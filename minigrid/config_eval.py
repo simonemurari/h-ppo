@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from typing import List
 load_dotenv()
-WANDB_PROJECT_NAME = os.getenv("WANDB_PROJECT_NAME", "cleanRL")
+WANDB_PROJECT_NAME = "eval-h-ppo-zsg"
 WANDB_ENTITY = os.getenv("WANDB_ENTITY", "")
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -55,7 +55,7 @@ class Args:
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
-    track: bool = True
+    track: bool = False
     """whether to track the experiment with wandb"""
 
     wandb_project_name: str = WANDB_PROJECT_NAME
