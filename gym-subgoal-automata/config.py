@@ -33,7 +33,7 @@ class Args:
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""
 
-    save_model: bool = False
+    save_model: bool = True
     """whether to save the model into a .pt file"""
 
     # Algorithm specific arguments
@@ -118,6 +118,18 @@ class Args:
 
     theta: float = 0.75
     """coefficient for symbolic loss term"""
+
+    psm_aux_coef: float = 1.0
+    """coefficient for the PSM/CME auxiliary loss"""
+
+    psm_temperature: float = 1.0
+    """temperature used in the PSM contrastive loss"""
+
+    psm_beta: float = 1.0
+    """scale used to convert the PSM metric into soft similarity weights"""
+
+    psm_dp_eps: float = 1e-7
+    """stopping threshold for the rollout-level PSM fixed-point solver"""
 
     # to be filled in runtime
     batch_size: int = 0

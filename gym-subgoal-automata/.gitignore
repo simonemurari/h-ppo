@@ -123,3 +123,5 @@ c51_rules_multiplication_v2_Render.py
 run_all.sh
 run_5_seeds.sh
 run_5_seeds_eval.sh
+aggregate_evals/
+aggregate_evals_logs/

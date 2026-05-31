@@ -1004,8 +1004,8 @@ class OfficeWorldPatrolABCEnv(OfficeWorldEnv):
             return self._get_suggested_actions(self.agent, OfficeWorldObject.ROOM_A)
         elif self.visited_rooms == OfficeWorldRoomVisits.VISITED_A:
             return self._get_suggested_actions(self.agent, OfficeWorldObject.ROOM_B)
-        elif self.visited_rooms == OfficeWorldRoomVisits.VISITED_AB:
-            return self._get_suggested_actions(self.agent, OfficeWorldObject.ROOM_C)
+        # elif self.visited_rooms == OfficeWorldRoomVisits.VISITED_AB:
+        #     return self._get_suggested_actions(self.agent, OfficeWorldObject.ROOM_C)
         else:
             return []
 

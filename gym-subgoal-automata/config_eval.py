@@ -24,7 +24,7 @@ class Args:
     """an optional code to distinguish the evaluation runs"""
 
     eval_type: str = "standard"
-    """the type of evaluation: standard or random_rules or h_ppo"""
+    """the type of evaluation: standard, random_rules, h_ppo, or check_values"""
 
     task_model: str = "DeliverCoffee"  # PatrolAB, RedGreenEnv
     """the task that the agent has been trained on"""
@@ -45,6 +45,14 @@ class Args:
 
     eval_episodes: int = 1000
     """the number of evaluation episodes"""
+
+    rolling_window_size: int = 3
+    """size of the rolling value/action window used in ppo_eval_check_values (check_values eval type)"""
+
+    value_skip_threshold: float = 0.0
+    """minimum value-delta (value_block[-1] - value_block[0]) required to skip rule override;
+    if delta > threshold the network is improving enough, so we let it cook.
+    0.0 = old behaviour (any positive increase skips rules); increase to require a larger improvement"""
 
     capture_video: bool = False
     """whether to capture videos of the agent performances (check out `videos` folder)"""

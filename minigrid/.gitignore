@@ -23,6 +23,7 @@ doorkey_old.py
 regex_wandb.txt
 *.csv
 aggregate_evals/
+aggregate_evals_logs/
 run_5_seeds.sh
 run_5_seeds_eval.sh
 algorithm_analysis.md
